@@ -1,0 +1,9 @@
+{
+	"name": "Perry's Physics",
+	"author": "PerrySelensol",
+	"color": "#80d0ff",
+	"autoScripts": [
+		"scripts/xrinters",
+		"scripts/main"
+	]
+}
