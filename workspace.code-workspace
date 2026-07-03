@@ -11,6 +11,7 @@
 		],
 		"files.associations": {
 			"*.bbmodel": "json"
-		}
+		},
+		"editor.insertSpaces": false
 	}
 }

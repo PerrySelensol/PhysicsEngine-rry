@@ -1,4 +1,8 @@
-local quatMath = require("scripts.quaternions")
+local quatMath = require("physEngine/quaternions")
+require("physEngine/vectors")
+require("physEngine/cuboid")
+
+--[=============================================================================]--
 
 
 --[[ 
