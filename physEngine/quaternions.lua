@@ -184,7 +184,7 @@ local function quatToRotMat(q)
 		vec(    2*x*z +2*y*w,	   2*y*z -2*x*w,	1 -2*x*x -2*y*y )
 	)
 end
-quatMath.rotMatToQuat = rotMatToQuat
+quatMath.quatToRotMat = quatToRotMat
 
 local function slerp(q1, q2, t)
 	local dot = q1[1]*q2[1] + q1[2]*q2[2] + q1[3]*q2[3] + q1[4]*q2[4]

@@ -3,7 +3,7 @@
 	"author": "PerrySelensol",
 	"color": "#80d0ff",
 	"autoScripts": [
-		"scripts/xrinters",
-		"scripts/main"
+		"physEngine/xrinters",
+		"physEngine/main"
 	]
 }

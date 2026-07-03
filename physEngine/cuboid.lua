@@ -1,3 +1,60 @@
+---@type any, ModelPart
+local simWorld, simWorldPart = require("physEngine/simWorld")
+local RigidBody = require("physEngine/rigidBody")
+local quatMath = require("physEngine/quaternions")
+
+--[=============================================================================]--
+
+local Cuboid = RigidBody:newSubclass()
+
+do
+	local cube_id = 0
+	local super_new = Cuboid.new
+	function Cuboid:new(blockState, sizeX, sizeY, sizeZ, mass)
+		local x2, y2, z2 = sizeX*sizeX, sizeY*sizeY, sizeZ*sizeZ
+		local m_12 = mass/12
+		
+		local o = super_new(self,
+			{
+				halfSizeX = sizeX/2,
+				halfSizeY = sizeY/2,
+				halfSizeZ = sizeZ/2,
+			
+				inverseMass = 1/mass,
+				inverseInertiaTensor = matrices.mat3(
+					vec(m_12*(y2+z2),	0,				0			),
+					vec(0,				m_12*(x2+z2),	0			),
+					vec(0,				0,				m_12*(y2+z2))
+				):inverted(),
+				renderTask = simWorldPart:newBlock("physCube_"..cube_id):block(blockState)
+			}
+		)
+		setmetatable(o, self)
+		self.__index = self
+
+		cube_id = cube_id+1
+		table.insert(simWorld, o)
+
+		return o
+	end
+end
+
+local lerp = math.lerp
+local slerp = quatMath.slerp
+local quatToRotMat = quatMath.quatToRotMat
+function Cuboid:render(delta)
+	local pos_l, ori_l = lerp(self.pos_, self.pos, delta), slerp(self.ori_, self.ori, delta)
+	self.renderTask:setMatrix(
+		matrices.scale4(16)*
+		matrices.translate4(pos_l)*
+		quatToRotMat(ori_l):augmented()*
+		matrices.translate4(-0.5,-0.5,-0.5)*
+		matrices.scale4(self.halfSizeX*2, self.halfSizeY*2, self.halfSizeZ*2)*
+		matrices.scale4(1/16)
+	)
+end
+
+--[[ 
 local newCube
 do
 	Cube_Geometry = {
@@ -77,6 +134,7 @@ do
 
 	end
 end
+--]]
 
 --[======================================================================[--
 	Let A, B be a point on first and second line respectively (here we choose the midpoints)
@@ -152,7 +210,7 @@ local function nearestPointToTwoEdges(edgeMidPointA, edgeDirA, edgeMidPointB, ed
 		local T_on_A = edgeMidPointA + edgeDirA * lengthAT
 		local T_on_B = edgeMidPointB + edgeDirB * lengthBT
 
-		return selectA and T_on_A or T_on_B--(cOne + cTwo) * 0.5
+		return selectA and T_on_A or T_on_B--(T_on_A + T_on_B) * 0.5
 	end
 end
 
@@ -176,3 +234,5 @@ function events.render()
 	point(nearestPointToTwoEdges(A, dirA:normalized(), B, dirB:normalized(), lenA, lenB, math.random()<0.5), vec(1,1,1))
 end
 --]]
+
+return Cuboid

@@ -1,8 +1,8 @@
-local quatMath = require("physEngine/quaternions")
-require("physEngine/vectors")
-require("physEngine/cuboid")
+local Cuboid = require("physEngine/cuboid")
 
 --[=============================================================================]--
+
+Cuboid:new("stone", 1, 1, 1, 1):setPos(vec(0,0,0)):setVel(vec(0,0,0)):setAngularVelocity(0.1,0.1,0)
 
 
 --[[ 
