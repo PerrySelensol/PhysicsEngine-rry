@@ -5,12 +5,12 @@ local quatMath = require("physEngine/quaternions")
 
 --[=============================================================================]--
 
-local Cuboid = RigidBody:newSubclass()
+local Box = RigidBody:newSubclass()
 
 do
 	local cube_id = 0
-	local super_new = Cuboid.new
-	function Cuboid:new(blockState, sizeX, sizeY, sizeZ, mass)
+	local super_new = Box.new
+	function Box:new(blockState, sizeX, sizeY, sizeZ, mass)
 		local x2, y2, z2 = sizeX*sizeX, sizeY*sizeY, sizeZ*sizeZ
 		local m_12 = mass/12
 		
@@ -42,7 +42,7 @@ end
 local lerp = math.lerp
 local slerp = quatMath.slerp
 local quatToRotMat = quatMath.quatToRotMat
-function Cuboid:render(delta)
+function Box:render(delta)
 	local pos_l, ori_l = lerp(self.pos_, self.pos, delta), slerp(self.ori_, self.ori, delta)
 	self.renderTask:setMatrix(
 		matrices.scale4(16)*
@@ -54,7 +54,7 @@ function Cuboid:render(delta)
 	)
 end
 
-function Cuboid:collideWithHalfSpace()
+function Box:collideWithHalfSpace()
 end
 
 --[[ 
@@ -238,4 +238,4 @@ function events.render()
 end
 --]]
 
-return Cuboid
+return Box

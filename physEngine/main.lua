@@ -1,11 +1,12 @@
-local Cuboid = require("physEngine/cuboid")
+require("physEngine/quaternions")
+local Box = require("physEngine/box")
 
 --[=============================================================================]--
 
-Cuboid:new("glass", 1, 1, 1, 1):setPos(vec(0,2,0)):setOrientation(quat(1,0,0,0))
+Box:new("glass", 1, 1, 1, 1):setPos(vec(0,2,0)):setOrientation(quat(1,0,0,0))
 :setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
 
-Cuboid:new("iron_block", 1, 1, 1, 1):setPos(vec(1,2,0)):setOrientation(quat(1,0,0,1))
+Box:new("iron_block", 1, 1, 1, 1):setPos(vec(1,2,0)):setOrientation(quat(1,0,0,1))
 :setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
 
 
