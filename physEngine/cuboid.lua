@@ -24,7 +24,7 @@ do
 				inverseInertiaTensor = matrices.mat3(
 					vec(m_12*(y2+z2),	0,				0			),
 					vec(0,				m_12*(x2+z2),	0			),
-					vec(0,				0,				m_12*(y2+z2))
+					vec(0,				0,				m_12*(y2+x2))
 				):inverted(),
 				renderTask = simWorldPart:newBlock("physCube_"..cube_id):block(blockState)
 			}
@@ -48,10 +48,13 @@ function Cuboid:render(delta)
 		matrices.scale4(16)*
 		matrices.translate4(pos_l)*
 		quatToRotMat(ori_l):augmented()*
-		matrices.translate4(-0.5,-0.5,-0.5)*
 		matrices.scale4(self.halfSizeX*2, self.halfSizeY*2, self.halfSizeZ*2)*
+		matrices.translate4(-0.5,-0.5,-0.5)*
 		matrices.scale4(1/16)
 	)
+end
+
+function Cuboid:collideWithHalfSpace()
 end
 
 --[[ 

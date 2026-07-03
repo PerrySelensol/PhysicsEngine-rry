@@ -6,6 +6,7 @@ require("physEngine/vectors")
 local RigidBody = {
 	inverseMass = nil,
 	inverseInertiaTensor = nil, -- The tensor is in local coords
+	inverseInertiaTensorWorld = nil,
 
 	pos_ = nil,
 	ori_ = nil, 
@@ -58,6 +59,7 @@ function RigidBody:setVel(vel)
 end
 
 function RigidBody:setOrientation(ori)
+	ori = ori:normalized()
 	self.ori_, self.ori = ori, ori
 	return self
 end
@@ -67,25 +69,39 @@ function RigidBody:setAngularVelocity(x, y, z)
 	return self
 end
 
-function RigidBody:calculateWorldInertiaTensor()
-	local ori = self.ori
-	self.inverseInertiaTensor = ori* self.inverseInertiaTensor* ori:transposed()
+function RigidBody:calculateDerivedData()
+	local ori = quatMath.quatToRotMat(self.ori)
+	self.oriMat = ori
+	self.inverseInertiaTensorWorld = ori* self.inverseInertiaTensor* ori:transposed()
 end
 
 function RigidBody:addForceAtCenter(force)
 	self.totalForce = self.totalForce + force
 end
 
-function RigidBody:addLocalCoordForce(force, point)
+-- This default addForce uses force and point in world space
+function RigidBody:addForce(force, point)
 	self.totalForce = self.totalForce + force
-	self.totalTorque = self.totalTorque + point^force
+	self.totalTorque = self.totalTorque + (point-self.pos)^force
+end
+
+-- World space direction, local application point
+function RigidBody:addForceAtBodyPoint(force, point)
+	self:addForce(force, self.oriMat*point + self.pos)
 end
 
 function RigidBody:integrate(dt)
 	self.pos_, self.ori_ = self.pos, self.ori
 
-	self.pos = self.pos + self.vel
-	self.ori = self.ori + self.rot:scaled(0.5)*self.ori
+	self.pos = self.pos + dt*self.vel
+	self.ori = (self.ori + self.rot:scaled(0.5*dt)*self.ori):normalized()
+
+	self:calculateDerivedData()
+	self.vel = self.vel + dt*self.inverseMass*self.totalForce
+	self.rot = self.rot + (self.inverseInertiaTensorWorld*(dt*self.totalTorque))._xyz
+
+	self.totalForce = vec(0,0,0)
+	self.totalTorque = vec(0,0,0)
 end
 
 return RigidBody
