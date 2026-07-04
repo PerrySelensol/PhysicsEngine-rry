@@ -91,6 +91,9 @@ function RigidBody:addForceAtBodyPoint(force, point)
 	self:addForce(force, self.oriMat*point + self.pos)
 end
 
+-- Very basic integration, doesn't conserve angular momentum (no tennis racket effect x-x)
+-- Any attempts to conserve angular momentum make
+-- the rotation axis converges to the longest principal axis
 function RigidBody:integrate(dt)
 	self.pos_, self.ori_ = self.pos, self.ori
 
@@ -98,16 +101,14 @@ function RigidBody:integrate(dt)
 	self.vel = self.vel + dt*self.inverseMass*self.totalForce
 	self.totalForce = vec(0,0,0)
 
-	
-	local angularMomentum = self.inverseInertiaTensorWorld:inverted()*vec(self.rot:unpack()).yzw
-	self.ori = (self.ori + self.rot:scaled(0.5*dt)*self.ori):normalized()
+	--local angularMomentum = self.inverseInertiaTensorWorld:inverted()*vec(self.rot:unpack()).yzw
 	self:calculateDerivedData()
-	
-	--self.rot = self.rot + (self.inverseInertiaTensorWorld*(dt*self.totalTorque))._xyz
-	self.rot = quat(0, (self.inverseInertiaTensorWorld*angularMomentum):unpack())
-	drint(angularMomentum, self.rot)
 
+	self.ori = (self.ori + self.rot:scaled(0.5*dt)*self.ori):normalized()
+	self.rot = self.rot + (self.inverseInertiaTensorWorld*(dt*self.totalTorque))._xyz
 	self.totalTorque = vec(0,0,0)
+	--self.rot = quat(0, (self.inverseInertiaTensorWorld*angularMomentum):unpack())
+	--drint(angularMomentum, self.rot)
 end
 
 function RigidBody:recalculateMotion(dt)
