@@ -12,7 +12,7 @@ function quat(w, x, y, z)
 	return setmetatable({w, x, y, z}, quaterions)
 end
 
-quaterions.unpack = table.unpack
+function quaterions:unpack() return self[1], self[2], self[3], self[4] end
 
 do
 	local template = "§e<%s, %s, %s, %s>§r"

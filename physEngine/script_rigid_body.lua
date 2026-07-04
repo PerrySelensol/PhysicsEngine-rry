@@ -2,6 +2,9 @@
 -- Rigid Body Physics (Position Based Attempt)
 --===========================================--
 
+local quatMath = require("physEngine/quaternions")
+local quatToRotMat = quatMath.quatToRotMat
+
 	local sin, cos, tan, atan2, pi, deg, rad	= math.sin, math.cos, math.tan, math.atan2, math.pi, math.deg, math.rad
 	local min, max, abs, random				= math.min, math.max, math.abs, math.random
 	local clamp, lerp, lerpAngle				= math.clamp, math.lerp, math.lerpAngle
@@ -11,8 +14,8 @@
 	local floor, ceil							= math.floor, math.ceil
 	local toRad, toDeg						= pi/180, 180/pi
 
-local PhysWorld = models.misc.World:newPart("PhysWorld")
-local OFFSET = vec(-547, 74+2/16, 386)
+local PhysWorld = models:newPart("PhysWorld", "WORLD")
+local OFFSET = vec(0,0,0)--vec(-547, 74+2/16, 386)
 
 local Basis = {
 	vec(1,0,0),
@@ -79,7 +82,7 @@ do
 			init_wel = init_wel:copy() or vec(0,0,0),
 
 			type = "cube", mass = mass,
-			bounciness = 0.95,
+			bounciness = 0,
 			axes = Cube_Geometry.axes,
 			inertiaTensor = Cube_Geometry.inertiaTensor*mass,
 			vertices = Cube_Geometry.vertices,
@@ -219,7 +222,7 @@ end
 
 local function renderBody(body, delta)
 	--drint(body.rot_, body.rot, delta)
-	local pos_l, rot_l = lerp(body.render_pos, body.pos, delta), quatSlerp(body.render_rot, body.rot, delta)
+	local pos_l, rot_l = lerp(body.render_pos, body.pos, delta), quatMath.slerp(body.render_rot, body.rot, delta)
 	body.task:setMatrix(
 		matrices.scale4(16)*
 		matrices.translate4(OFFSET)*
@@ -244,8 +247,15 @@ C2 = newCube("glass", 1,
 )
 
 C3 = newCube("diamond_block", 1,
-	vec(0,20.6,0),
+	vec(0,1.6,0),
 	quat(1,0,0.001,0):normalized(),
+	vec(0,0,0),
+	vec(0,0,0)
+)
+
+C4 = newCube("gold_block", 1,
+	vec(0,2.6,0),
+	quat(1,0,0.21,0):normalized(),
 	vec(0,0,0),
 	vec(0,0,0)
 )
@@ -404,7 +414,7 @@ local function groundContact(steps, body)
 		if altitude < 0 then table.insert(t, {points[i], -altitude}) end
 	end
 	for i = 1, #t do
-		table.insert(body.nudgeQueue, {t[i][1], M_:applyDir(vec(0,1,0)), body.mass*t[i][2]})
+		table.insert(body.nudgeQueue, {t[i][1], M_:applyDir(vec(0,1,0)), t[i][2]})
 	end
 
 end
@@ -439,8 +449,8 @@ local function solveAllNudges(body, h)
 	body.wasNudged = true
 end
 
-local Steps = 4
-local SolveIter = 2
+local Steps = 1
+local SolveIter = 20
 
 function events.tick()
 	--drint(player:getLookDir())
@@ -449,28 +459,35 @@ function events.tick()
 		storeLastTick(v)
 	end
 	--trint(1, Cube_Geometry.vertices)
+
 	for i = 1, Steps do
 		for _, body in pairs(Rigid_Bodies) do
 			step(body, 0.05/Steps)
 		end
+		
 		if pickup then
 			setPos(C1, player:getPos()+vec(0,player:getEyeHeight(),0)+3*player:getLookDir()-OFFSET)
 		end
+
+		cubecubeContact(C1, C2)
+		cubecubeContact(C1, C3)
+		cubecubeContact(C1, C4)
+		cubecubeContact(C2, C3)
+		cubecubeContact(C2, C4)
+		cubecubeContact(C3, C4)
+		for _, body in pairs(Rigid_Bodies) do
+			groundContact(Steps, body)
+		end
+
 		for j = 1, SolveIter do
-			cubecubeContact(C1, C2)
-			cubecubeContact(C2, C3)
-			cubecubeContact(C3, C1)
-			--showAllContacts(C2)
-			--trint(2, C2.nudgeQueue)
 			for _, body in pairs(Rigid_Bodies) do
-				groundContact(Steps, body)
-				solveAllNudges(body, 1/SolveIter)
+				solveAllNudges(body, 1)
 			end
 		end
 		for _, body in pairs(Rigid_Bodies) do
 			recalculateMotion(Steps, body)
 			dampVelocities(body, body.bounciness)
-			applyForce(body, body.pos, vec(0,-1,0), 0.5/Steps)
+			applyForce(body, body.pos, vec(0,-1,0), 1/Steps)
 		end
 	end
 end

@@ -19,20 +19,14 @@ end
 local TIME_STEP_DURATION = 1/20
 
 function events.tick()
-	for i, body in ipairs(simWorld) do
+	for _, body in ipairs(simWorld) do
 		ForceGenerators.updateAllForces(TIME_STEP_DURATION)
 		body:integrate(TIME_STEP_DURATION)
+
+		--body:solvePosition()
+		--body:recalculateMotion(TIME_STEP_DURATION)
+		--body:solveVelocity()
 	end
-	--simWorld[1]:addForce(vec( 1,0,0), vec(0,1,0))
-	--simWorld[1]:addForce(vec(-1,0,0), vec(0,-1,0))
-	--simWorld[1]:addForce(vec( 1,0,0), vec(0,0,1))
-	--simWorld[1]:addForce(vec(-1,0,0), vec(0,0,-1))
-	--simWorld[1]:addForce(vec(0,1,0), vec(-1,-1,-1))
-	--simWorld[1]:addForce(vec(0,-1,0), vec(1,1,1))
-	--simWorld[2]:addForce(vec(0,1,0), vec(-1,-1,-1))
-	--simWorld[2]:addForce(vec(0,-1,0), vec(1,1,1))
-	--simWorld[1]:addForceAtBodyPoint(vec(0,1,0), vec(1,0,0))
-	--simWorld[2]:addForceAtBodyPoint(vec(0,1,0), vec(1,0,0))
 end
 
 

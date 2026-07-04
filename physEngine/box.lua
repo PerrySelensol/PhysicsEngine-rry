@@ -34,6 +34,7 @@ do
 
 		cube_id = cube_id+1
 		table.insert(simWorld, o)
+		o:calculateDerivedData()
 
 		return o
 	end
