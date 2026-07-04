@@ -3,12 +3,15 @@ local Box = require("physEngine/box")
 
 --[=============================================================================]--
 
-Box:new("glass", 1, 1, 1, 1):setPos(vec(0,2,0)):setOrientation(quat(1,0,0,0))
-:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+--local box1 = Box:new("glass", 1, 1, 1, 1):setPos(vec(0,2,0)):setOrientation(quat(1,0,0,0))
+--:setVel(vec(0,0,0)):setAngularVelocity(1,0,0)
 
-Box:new("iron_block", 1, 1, 1, 1):setPos(vec(1,2,0)):setOrientation(quat(1,0,0,1))
-:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+local box2 = Box:new("iron_block", 3, 0.2, 5, 1):setPos(vec(1,2,0)):setOrientation(quat(1,0,0,0))
+:setVel(vec(0,0,0)):setAngularVelocity(0,5,0.01)
 
+function events.render()
+	--drint(box1.rot, box2.rot)
+end
 
 --[[ 
 local inv = getmetatable(quat(1,2,3,4)).__len

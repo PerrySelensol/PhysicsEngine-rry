@@ -6,6 +6,7 @@ require("physEngine/vectors")
 local RigidBody = {
 	inverseMass = nil,
 	inverseInertiaTensor = nil, -- The tensor is in local coords
+	---@type Matrix3
 	inverseInertiaTensorWorld = nil,
 
 	pos_ = nil,
@@ -94,14 +95,33 @@ function RigidBody:integrate(dt)
 	self.pos_, self.ori_ = self.pos, self.ori
 
 	self.pos = self.pos + dt*self.vel
-	self.ori = (self.ori + self.rot:scaled(0.5*dt)*self.ori):normalized()
-
-	self:calculateDerivedData()
 	self.vel = self.vel + dt*self.inverseMass*self.totalForce
-	self.rot = self.rot + (self.inverseInertiaTensorWorld*(dt*self.totalTorque))._xyz
-
 	self.totalForce = vec(0,0,0)
+
+	
+	local angularMomentum = self.inverseInertiaTensorWorld:inverted()*vec(self.rot:unpack()).yzw
+	self.ori = (self.ori + self.rot:scaled(0.5*dt)*self.ori):normalized()
+	self:calculateDerivedData()
+	
+	--self.rot = self.rot + (self.inverseInertiaTensorWorld*(dt*self.totalTorque))._xyz
+	self.rot = quat(0, (self.inverseInertiaTensorWorld*angularMomentum):unpack())
+	drint(angularMomentum, self.rot)
+
 	self.totalTorque = vec(0,0,0)
 end
+
+function RigidBody:recalculateMotion(dt)
+
+	-- pos = pos_ + dt*vel
+	self.vel = (self.pos - self.pos_)/dt
+
+	-- ori = ori_ + (dt/2)*(rot*ori_)
+	-- Therefore rot = (2/dt)*(ori*#ori_ - quat(1,0,0,0)), but we will ignore the real component anyways
+	local dq = self.ori * #self.ori_
+	self.rot = dq:scaled(2/dt)
+	self.rot[1] = 0
+
+end
+
 
 return RigidBody
