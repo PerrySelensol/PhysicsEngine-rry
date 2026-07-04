@@ -28,13 +28,37 @@ local function generateOrthoBasis(fixedX, suggestY)
 	return fixedX, genY, genZ
 end
 
+local function findImpulseAtContactPoint(bodyA, bodyB, contactPoint, contactNormalA)
+	local relativeContactPoint = contactPoint - bodyA.pos
+
+	local impulseTorquePerUnit = relativeContactPoint^contactNormalA
+	local rotPerUnit = bodyA.inverseInertiaTensor* impulseTorquePerUnit
+	local velPerUnit = rotPerUnit ^ relativeContactPoint
+
+	local deltaVelAlongNormal = velPerUnit .. contactNormalA
+
+	deltaVelAlongNormal = deltaVelAlongNormal + bodyA.inverseMass
+
+	if bodyB then
+		relativeContactPoint = contactPoint - bodyB.pos
+
+		impulseTorquePerUnit = relativeContactPoint^contactNormalA
+		rotPerUnit = bodyB.inverseInertiaTensor* impulseTorquePerUnit
+		velPerUnit = rotPerUnit ^ relativeContactPoint
+
+		deltaVelAlongNormal = velPerUnit .. contactNormalA
+
+		deltaVelAlongNormal = deltaVelAlongNormal + bodyB.inverseMass
+	end
+
+	return deltaVelAlongNormal
+end
+
 function CollisionSolver:solve()
 	for _, data in ipairs(self) do
 		if not data.bodyB then -- Single body case (such as body-half space)
-			local A = self.bodyA
-			local relativeContactPoint = self.contactPoint - A.pos
-			local impulseTorquePerUnit = relativeContactPoint^self.contactNormalA
-			local rotPerUnit = A.inverseInertiaTensor* impulseTorquePerUnit
+
+
 		else
 		end
 	end
