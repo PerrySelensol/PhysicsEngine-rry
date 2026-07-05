@@ -13,7 +13,7 @@ local HalfSpace = {
 function HalfSpace:new(pos, dir)
 	local o = {
 		pos = pos,
-		dir = dir
+		dir = dir:normalized()
 	}
 
 	setmetatable(o, self)

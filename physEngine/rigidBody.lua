@@ -81,6 +81,18 @@ function RigidBody:calculateDerivedData()
 	self.inverseInertiaTensorWorld = ori* self.inverseInertiaTensor* ori:transposed()
 end
 
+-- World space direction, local application point in world orientation
+function RigidBody:addWorldImpulse(impulse, point)
+	self.vel = self.vel + (self.inverseMass * impulse)
+	self.rot = self.rot + (self.inverseInertiaTensorWorld * (point^impulse))
+end
+
+-- World space direction, local application point in world orientation
+--function RigidBody:nudge(linearNudge, angularNudge, penetration)
+--	self.pos = self.pos + displacement * self.inverseMass
+--	local impulse = self.inverseInertiaTensorWorld * (point^displacement)
+--end
+
 function RigidBody:addForceAtCenter(force)
 	self.totalForce = self.totalForce + force
 end

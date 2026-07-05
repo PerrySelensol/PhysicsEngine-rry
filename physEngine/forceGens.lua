@@ -6,10 +6,12 @@ require("physEngine/vectors")
 local ForceGenerators = {}
 local forceRegistry = {}
 
-function ForceGenerators.gravityForce(body, gravityAcc)
-	-- Disallow infinite mass
-	if body.inverseMass == 0 then return end
-	body:addForceAtCenter(gravityAcc/body.inverseMass)
+function ForceGenerators.gravityForceGen(gravityAcc)
+	return function(body, dt)
+		-- Disallow infinite mass
+		if body.inverseMass == 0 then return end
+		body:addForceAtCenter(gravityAcc/body.inverseMass)
+	end
 end
 
 function ForceGenerators.register(body, generator)

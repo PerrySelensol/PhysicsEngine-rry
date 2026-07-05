@@ -1,6 +1,7 @@
 require("physEngine/quaternions")
 local Box = require("physEngine/box")
 local HalfSpace = require("physEngine/halfSpace")
+local ForceGenerators = require("physEngine/forceGens")
 
 --[=============================================================================]--
 
@@ -9,9 +10,14 @@ local HalfSpace = require("physEngine/halfSpace")
 
 local ground = HalfSpace:new(vec(0,0,0), vec(0,1,0))
 
-local box2 = Box:new("iron_block", 3, 0.2, 5, 1):setRestitution(0)
-:setPos(vec(1,10,0)):setOrientation(quat(1,0,0,0))
-:setVel(vec(0,-1,0))--:setAngularVelocity(0.1,0,0.2)
+local q = quat(0.888073833977, 0.32505758, 0, 0.32505758):normalized()
+local p = quat(1,0,0,0):normalized()
+
+local box2 = Box:new("iron_block", 1,1,1, 1):setRestitution(0.3)
+:setPos(vec(0,5,0)):setOrientation(q)
+:setVel(vec(0,0,0)):setAngularVelocity(2,0,0)
+
+ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
 function events.render()
 	--drint(box1.rot, box2.rot)

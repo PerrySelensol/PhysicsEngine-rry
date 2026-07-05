@@ -1,5 +1,6 @@
 local quatMath = require("physEngine/quaternions")
 require("physEngine/vectors")
+local CollisionSolver = require("physEngine/collisionSolver")
 
 --[=============================================================================]--
 
@@ -32,6 +33,21 @@ function ContactGenerators.boxToHalfSpaceContacts(box, plane)
 	
 	-- Check all vertices
 	for i = -1, 1, 2 do for j = -1, 1, 2 do for k = -1, 1, 2 do
-		
+		local vert = vec(i*box.halfSizeX, j*box.halfSizeY, k*box.halfSizeZ)
+		local vertInWorldSpace = box.oriMat*vert + box.pos
+		local vertInPlaneSpace = plane.dir .. (vertInWorldSpace - plane.pos)
+		if vertInPlaneSpace < 0 then
+			point(vertInWorldSpace)
+			CollisionSolver:addContactData{
+				A = box,
+
+				contactPoint = vertInWorldSpace,
+				contactNormalA = plane.dir,
+
+				restitution = box.restitution,
+			}
+		end
 	end end end
 end
+
+return ContactGenerators

@@ -8,11 +8,20 @@ local CollisionSolver = {}
 CollisionSolver.addContactData = table.insert
 --[[
 ContactData: {
-	bodyA,
-	bodyB,
+	-- Two bodies, B may be absent (such as when B is immovable)
+	A,
+	B,
+
 	contactPoint,
+
+	-- Contact normal convention here: A's points into A itself
+	-- B's contact normal is always a negation of A's
 	contactNormalA,
-	penetration
+
+	penetration,
+
+	friction,
+	restitution
 }
 --]]
 
@@ -28,38 +37,106 @@ local function generateOrthoBasis(fixedX, suggestY)
 	return fixedX, genY, genZ
 end
 
-local function findImpulseAtContactPoint(bodyA, bodyB, contactPoint, contactNormalA)
-	local relativeContactPoint = contactPoint - bodyA.pos
+local function getRateOfVelChangePerImpulse(A, B, contactPoint, contactNormalA)
+	local deltaVelAlongNormal
 
-	local impulseTorquePerUnit = relativeContactPoint^contactNormalA
-	local rotPerUnit = bodyA.inverseInertiaTensor* impulseTorquePerUnit
-	local velPerUnit = rotPerUnit ^ relativeContactPoint
+	local relativeContactPointA = contactPoint - A.pos
+	local linearInertiaA = A.inverseMass
+	local angularInertiaA
 
-	local deltaVelAlongNormal = velPerUnit .. contactNormalA
+	local relativeContactPointB
+	local linearInertiaB
+	local angularInertiaB
 
-	deltaVelAlongNormal = deltaVelAlongNormal + bodyA.inverseMass
+	do
+		local angularImpulsePerLinearImpulse = relativeContactPointA ^ contactNormalA
+		local rotPerUnit = A.inverseInertiaTensor * angularImpulsePerLinearImpulse
+		local velPerUnit = rotPerUnit ^ relativeContactPointA
 
-	if bodyB then
-		relativeContactPoint = contactPoint - bodyB.pos
+		angularInertiaA = velPerUnit .. contactNormalA
 
-		impulseTorquePerUnit = relativeContactPoint^contactNormalA
-		rotPerUnit = bodyB.inverseInertiaTensor* impulseTorquePerUnit
-		velPerUnit = rotPerUnit ^ relativeContactPoint
-
-		deltaVelAlongNormal = velPerUnit .. contactNormalA
-
-		deltaVelAlongNormal = deltaVelAlongNormal + bodyB.inverseMass
+		deltaVelAlongNormal = angularInertiaA + linearInertiaA
 	end
 
-	return deltaVelAlongNormal
+	if B then
+		relativeContactPointB = contactPoint - B.pos
+		linearInertiaB = B.inverseMass
+
+		local angularImpulsePerLinearImpulse = relativeContactPointB ^ contactNormalA
+		local rotPerUnit = B.inverseInertiaTensor * angularImpulsePerLinearImpulse
+		local velPerUnit = rotPerUnit ^ relativeContactPointB
+
+		angularInertiaB = velPerUnit .. contactNormalA
+
+		deltaVelAlongNormal = deltaVelAlongNormal + angularInertiaB + linearInertiaB
+	end
+
+	return
+		deltaVelAlongNormal,
+
+		relativeContactPointA,
+		linearInertiaA,
+		angularInertiaA,
+
+		relativeContactPointB,
+		linearInertiaB,
+		angularInertiaB
 end
 
-function CollisionSolver:solve()
-	for _, data in ipairs(self) do
-		if not data.bodyB then -- Single body case (such as body-half space)
+local function getSeparatingVel(A, B, contactPoint, contactNormalA)
+	local totalSepVel = (A.vel + (A.rot ^ (contactPoint - A.pos))) .. contactNormalA
+	if B then
+		totalSepVel = totalSepVel + (B.vel + (B.rot ^ (contactPoint - B.pos))) .. contactNormalA
+	end
+	return totalSepVel
+end
 
+local function solveVelocity(data, duration)
+	local separatingVel = getSeparatingVel(data.A, data.B, data.contactPoint, data.contactNormalA)
 
-		else
-		end
+	-- Pairs of contact points moving away need no solving
+	if separatingVel > 0 then return end
+
+	-- This is our target separating velocity after collision
+	local targetSepVel = -separatingVel*(1 + data.restitution)
+
+	-- Distribute this targetSepVel to the 2 masses
+
+	local
+		deltaVelChangePerImpulse,
+
+		relativeContactPointA,
+		linearInertiaA,
+		angularInertiaA,
+		
+		relativeContactPointB,
+		linearInertiaB,
+		angularInertiaB
+	= getRateOfVelChangePerImpulse(data.A, data.B, data.contactPoint, data.contactNormalA)
+
+	local totalImpulse = targetSepVel / deltaVelChangePerImpulse
+
+	local totalImpulseWorld = totalImpulse * data.contactNormalA
+
+	data.A:addWorldImpulse(totalImpulseWorld, relativeContactPointA)
+	if data.B then data.B:addWorldImpulse(-totalImpulseWorld, relativeContactPointB) end
+
+	--[[ 	
+	local totalInverseMass = data.A.inverseMass + (data.B and data.B.inverseMass or 0)
+	local impulse = targetSepVel / totalInverseMass
+
+	data.A.vel = data.A.vel + (data.contactNormalA*impulse*data.A.inverseMass)
+	if data.B then
+		data.B.vel = data.B.vel - (data.contactNormalA*impulse*data.B.inverseMass)
+	end
+	--]]
+end
+
+function CollisionSolver:solve(duration)
+	for i, data in ipairs(self) do
+		solveVelocity(data, duration)
+		self[i] = nil
 	end
 end
+
+return CollisionSolver
