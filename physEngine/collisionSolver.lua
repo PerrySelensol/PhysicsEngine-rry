@@ -37,8 +37,8 @@ local function generateOrthoBasis(fixedX, suggestY)
 	return fixedX, genY, genZ
 end
 
-local function getRateOfVelChangePerImpulse(A, B, contactPoint, contactNormalA)
-	local deltaVelAlongNormal
+local function calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
+	local totalInertia
 
 	local relativeContactPointA = contactPoint - A.pos
 	local linearInertiaA = A.inverseMass
@@ -55,7 +55,7 @@ local function getRateOfVelChangePerImpulse(A, B, contactPoint, contactNormalA)
 
 		angularInertiaA = velPerUnit .. contactNormalA
 
-		deltaVelAlongNormal = angularInertiaA + linearInertiaA
+		totalInertia = angularInertiaA + linearInertiaA
 	end
 
 	if B then
@@ -68,11 +68,11 @@ local function getRateOfVelChangePerImpulse(A, B, contactPoint, contactNormalA)
 
 		angularInertiaB = velPerUnit .. contactNormalA
 
-		deltaVelAlongNormal = deltaVelAlongNormal + angularInertiaB + linearInertiaB
+		totalInertia = totalInertia + angularInertiaB + linearInertiaB
 	end
 
 	return
-		deltaVelAlongNormal,
+		totalInertia,
 
 		relativeContactPointA,
 		linearInertiaA,
@@ -91,50 +91,112 @@ local function getSeparatingVel(A, B, contactPoint, contactNormalA)
 	return totalSepVel
 end
 
-local function solveVelocity(data, duration)
-	local separatingVel = getSeparatingVel(data.A, data.B, data.contactPoint, data.contactNormalA)
+local function solveVelocity(
+	A,
+	B,
+
+	contactPoint,
+	contactNormalA,
+
+	totalInertia,
+
+	friction,
+	restitution
+)
+	local separatingVel = getSeparatingVel(A, B, contactPoint, contactNormalA)
 
 	-- Pairs of contact points moving away need no solving
 	if separatingVel > 0 then return end
 
 	-- This is our target separating velocity after collision
-	local targetSepVel = -separatingVel*(1 + data.restitution)
+	local targetSepVel = -separatingVel*(1 + restitution)
 
 	-- Distribute this targetSepVel to the 2 masses
+	local totalImpulse = targetSepVel / totalInertia
 
-	local
-		deltaVelChangePerImpulse,
+	local totalImpulseWorld = totalImpulse * contactNormalA
 
-		relativeContactPointA,
-		linearInertiaA,
-		angularInertiaA,
-		
-		relativeContactPointB,
-		linearInertiaB,
-		angularInertiaB
-	= getRateOfVelChangePerImpulse(data.A, data.B, data.contactPoint, data.contactNormalA)
+	A:addWorldImpulse(totalImpulseWorld, contactPoint-A.pos)
+	if B then B:addWorldImpulse(-totalImpulseWorld, contactPoint-B.pos) end
+end
 
-	local totalImpulse = targetSepVel / deltaVelChangePerImpulse
+local function solvePenetration(
+	A,
+	B,
+	penetration,
+	contactNormalA,
 
-	local totalImpulseWorld = totalImpulse * data.contactNormalA
+	totalInertia,
 
-	data.A:addWorldImpulse(totalImpulseWorld, relativeContactPointA)
-	if data.B then data.B:addWorldImpulse(-totalImpulseWorld, relativeContactPointB) end
+	relativeContactPointA,
+	linearInertiaA,
+	angularInertiaA,
+	
+	relativeContactPointB,
+	linearInertiaB,
+	angularInertiaB
+)
+	local inverseInertia = 1 / totalInertia
 
-	--[[ 	
-	local totalInverseMass = data.A.inverseMass + (data.B and data.B.inverseMass or 0)
-	local impulse = targetSepVel / totalInverseMass
+	local linearMoveA = penetration * linearInertiaA * inverseInertia
+	local angularMoveA = penetration * angularInertiaA * inverseInertia
 
-	data.A.vel = data.A.vel + (data.contactNormalA*impulse*data.A.inverseMass)
-	if data.B then
-		data.B.vel = data.B.vel - (data.contactNormalA*impulse*data.B.inverseMass)
+	A:nudge(
+		linearMoveA * contactNormalA,
+		A.inverseInertiaTensorWorld * (relativeContactPointA ^ contactNormalA) * (1/angularInertiaA) * angularMoveA
+	)
+
+	if B then
+		local linearMoveB = -penetration * linearInertiaB * inverseInertia
+		local angularMoveB = -penetration * angularInertiaB * inverseInertia
+
+		B:nudge(
+			linearMoveB * contactNormalA,
+			B.inverseInertiaTensorWorld * (relativeContactPointB ^ contactNormalA) * (1/angularInertiaB) * angularMoveB
+		)
 	end
-	--]]
 end
 
 function CollisionSolver:solve(duration)
 	for i, data in ipairs(self) do
-		solveVelocity(data, duration)
+		local A = data.A
+		local B = data.B
+		local contactPoint = data.contactPoint
+		local contactNormalA = data.contactNormalA
+		local penetration = data.penetration
+
+		local
+			totalInertia, -- Change of vel per unit impulse
+
+			relativeContactPointA,
+			linearInertiaA,
+			angularInertiaA,
+
+			relativeContactPointB,
+			linearInertiaB,
+			angularInertiaB
+		= calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
+
+		solvePenetration(
+			A,
+			B,
+			penetration,
+			contactNormalA,
+
+			totalInertia,
+
+			relativeContactPointA,
+			linearInertiaA,
+			angularInertiaA,
+			
+			relativeContactPointB,
+			linearInertiaB,
+			angularInertiaB
+		)
+
+		A:calculateDerivedData()
+		solveVelocity(A, B, contactPoint, contactNormalA, totalInertia, data.friction, data.restitution)
+
 		self[i] = nil
 	end
 end

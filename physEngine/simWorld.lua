@@ -5,14 +5,14 @@ local ContactGenerators = require("physEngine/contacts")
 --[=============================================================================]--
 
 local simWorld = {}
+local simRunning = true
 
 local simWorldPart = models:newPart("simWorldPart", "World")--:pos(16*vec(-233, 63, 165))
 
 local renderName = host:isHost() and "world_render" or "render"
 events[renderName] = function(delta)
-	--drint(simWorld[1].ori_, simWorld[1].ori)
 	for i, body in ipairs(simWorld) do
-		if not body.noRender then body:render(delta) end
+		if not body.noRender then body:render(simRunning and delta or 1) end
 	end
 end
 
@@ -20,7 +20,7 @@ end
 -- but we can change the duration to frame time if needed
 local TIME_STEP_DURATION = 1/20
 
-function events.tick()
+local function step()
 	for _, body in ipairs(simWorld) do
 		if not body.colliderOnly then
 			ForceGenerators.updateAllForces(TIME_STEP_DURATION)
@@ -30,9 +30,23 @@ function events.tick()
 
 	ContactGenerators.boxToHalfSpaceContacts(simWorld[2], simWorld[1])
 
+	--trint(1, simWorld[2])
+
 	CollisionSolver:solve(TIME_STEP_DURATION)
+
+	for _, body in ipairs(simWorld) do
+		if not body.colliderOnly then
+			body:applyImpulse()
+			--body:recalculateMotion(TIME_STEP_DURATION)
+		end
+	end
 end
 
-
+events.tick:register(step)
+keybinds:newKeybind("step", "key.keyboard.page.up"):onPress(function()
+	events.tick[simRunning and "remove" or "register"](events.tick, step)
+	simRunning = not simRunning
+end)
+keybinds:newKeybind("step", "key.keyboard.end"):onPress(step)
 
 return simWorld, simWorldPart

@@ -41,6 +41,9 @@ function RigidBody:new(o)
 	o.vel = vec(0,0,0)
 	o.rot = vec(0,0,0)
 
+	o.deltaVel = vec(0,0,0)
+	o.deltaRot = vec(0,0,0)
+
 	o.totalForce = vec(0,0,0)
 	o.totalTorque = vec(0,0,0)
 
@@ -82,16 +85,25 @@ function RigidBody:calculateDerivedData()
 end
 
 -- World space direction, local application point in world orientation
+-- TODO: check this impulse addition's validity
 function RigidBody:addWorldImpulse(impulse, point)
-	self.vel = self.vel + (self.inverseMass * impulse)
-	self.rot = self.rot + (self.inverseInertiaTensorWorld * (point^impulse))
+	self.deltaVel = self.deltaVel + (self.inverseMass * impulse)
+	self.deltaRot = self.deltaRot + (self.inverseInertiaTensorWorld * (point^impulse))
+end
+
+function RigidBody:applyImpulse()
+	self.vel = self.vel + self.deltaVel
+	self.rot = self.rot + self.deltaRot
+	self.deltaVel = vec(0,0,0)
+	self.deltaRot = vec(0,0,0)
 end
 
 -- World space direction, local application point in world orientation
---function RigidBody:nudge(linearNudge, angularNudge, penetration)
---	self.pos = self.pos + displacement * self.inverseMass
---	local impulse = self.inverseInertiaTensorWorld * (point^displacement)
---end
+function RigidBody:nudge(vel, rot)
+	self.pos = self.pos + vel
+	local half_quatRot = quat(0, (0.5*rot):unpack())
+	self.ori = (self.ori + half_quatRot*self.ori):normalized()
+end
 
 function RigidBody:addForceAtCenter(force)
 	self.totalForce = self.totalForce + force
@@ -114,33 +126,32 @@ end
 function RigidBody:integrate(dt)
 	self.pos_, self.ori_ = self.pos, self.ori
 
-	self.pos = self.pos + dt*self.vel
 	self.vel = self.vel + dt*self.inverseMass*self.totalForce
-	self.totalForce = vec(0,0,0)
+	self.pos = self.pos + dt*self.vel
 
 	--local angularMomentum = self.inverseInertiaTensorWorld:inverted()*vec(self.rot:unpack()).yzw
-	self:calculateDerivedData()
-
+	self.rot = self.rot + self.inverseInertiaTensorWorld*(dt*self.totalTorque)
 	local halfDt_times_quatRot = quat(0, (0.5*dt*self.rot):unpack())
 	self.ori = (self.ori + halfDt_times_quatRot*self.ori):normalized()
-	self.rot = self.rot + self.inverseInertiaTensorWorld*(dt*self.totalTorque)
+
+	self:calculateDerivedData()
+	self.totalForce = vec(0,0,0)
 	self.totalTorque = vec(0,0,0)
 	--self.rot = quat(0, (self.inverseInertiaTensorWorld*angularMomentum):unpack())
 	--drint(angularMomentum, self.rot)
 end
 
---function RigidBody:recalculateMotion(dt)
---
---	-- pos = pos_ + dt*vel
---	self.vel = (self.pos - self.pos_)/dt
---
---	-- ori = ori_ + (dt/2)*(rot*ori_)
---	-- Therefore rot = (2/dt)*(ori*#ori_ - quat(1,0,0,0)), but we will ignore the real component anyways
---	local dq = self.ori * #self.ori_
---	self.rot = dq:scaled(2/dt)
---	self.rot[1] = 0
---
---end
+function RigidBody:recalculateMotion(dt)
+
+	-- pos = pos_ + dt*vel
+	self.vel = (self.pos - self.pos_)/dt
+
+	-- ori = ori_ + (dt/2)*(rot*ori_)
+	-- Therefore rot = (2/dt)*(ori*#ori_ - quat(1,0,0,0)), but we will ignore the real component anyways
+	local dq = self.ori * #self.ori_
+	self.rot = vec(dq[2], dq[3], dq[4])*2/dt
+
+end
 
 
 return RigidBody

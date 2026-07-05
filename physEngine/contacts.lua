@@ -44,6 +44,8 @@ function ContactGenerators.boxToHalfSpaceContacts(box, plane)
 				contactPoint = vertInWorldSpace,
 				contactNormalA = plane.dir,
 
+				penetration = -vertInPlaneSpace,
+
 				restitution = box.restitution,
 			}
 		end
