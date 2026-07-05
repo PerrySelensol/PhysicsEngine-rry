@@ -1,13 +1,17 @@
 require("physEngine/quaternions")
 local Box = require("physEngine/box")
+local HalfSpace = require("physEngine/halfSpace")
 
 --[=============================================================================]--
 
 --local box1 = Box:new("glass", 1, 1, 1, 1):setPos(vec(0,2,0)):setOrientation(quat(1,0,0,0))
 --:setVel(vec(0,0,0)):setAngularVelocity(1,0,0)
 
-local box2 = Box:new("iron_block", 3, 0.2, 5, 1):setPos(vec(1,2,0)):setOrientation(quat(1,0,0,0))
-:setVel(vec(0,0,0)):setAngularVelocity(0,5,0.01)
+local ground = HalfSpace:new(vec(0,0,0), vec(0,1,0))
+
+local box2 = Box:new("iron_block", 3, 0.2, 5, 1):setRestitution(0)
+:setPos(vec(1,10,0)):setOrientation(quat(1,0,0,0))
+:setVel(vec(0,-1,0))--:setAngularVelocity(0.1,0,0.2)
 
 function events.render()
 	--drint(box1.rot, box2.rot)

@@ -39,7 +39,7 @@ function RigidBody:new(o)
 	o.ori = quat(1,0,0,0)
 
 	o.vel = vec(0,0,0)
-	o.rot = quat(0,0,0,0)
+	o.rot = vec(0,0,0)
 
 	o.totalForce = vec(0,0,0)
 	o.totalTorque = vec(0,0,0)
@@ -66,7 +66,12 @@ function RigidBody:setOrientation(ori)
 end
 
 function RigidBody:setAngularVelocity(x, y, z)
-	self.rot = quat(0, x, y, z)
+	self.rot = vec(x, y, z)
+	return self
+end
+
+function RigidBody:setRestitution(res)
+	self.restitution = res
 	return self
 end
 
@@ -104,25 +109,26 @@ function RigidBody:integrate(dt)
 	--local angularMomentum = self.inverseInertiaTensorWorld:inverted()*vec(self.rot:unpack()).yzw
 	self:calculateDerivedData()
 
-	self.ori = (self.ori + self.rot:scaled(0.5*dt)*self.ori):normalized()
-	self.rot = self.rot + (self.inverseInertiaTensorWorld*(dt*self.totalTorque))._xyz
+	local halfDt_times_quatRot = quat(0, (0.5*dt*self.rot):unpack())
+	self.ori = (self.ori + halfDt_times_quatRot*self.ori):normalized()
+	self.rot = self.rot + self.inverseInertiaTensorWorld*(dt*self.totalTorque)
 	self.totalTorque = vec(0,0,0)
 	--self.rot = quat(0, (self.inverseInertiaTensorWorld*angularMomentum):unpack())
 	--drint(angularMomentum, self.rot)
 end
 
-function RigidBody:recalculateMotion(dt)
-
-	-- pos = pos_ + dt*vel
-	self.vel = (self.pos - self.pos_)/dt
-
-	-- ori = ori_ + (dt/2)*(rot*ori_)
-	-- Therefore rot = (2/dt)*(ori*#ori_ - quat(1,0,0,0)), but we will ignore the real component anyways
-	local dq = self.ori * #self.ori_
-	self.rot = dq:scaled(2/dt)
-	self.rot[1] = 0
-
-end
+--function RigidBody:recalculateMotion(dt)
+--
+--	-- pos = pos_ + dt*vel
+--	self.vel = (self.pos - self.pos_)/dt
+--
+--	-- ori = ori_ + (dt/2)*(rot*ori_)
+--	-- Therefore rot = (2/dt)*(ori*#ori_ - quat(1,0,0,0)), but we will ignore the real component anyways
+--	local dq = self.ori * #self.ori_
+--	self.rot = dq:scaled(2/dt)
+--	self.rot[1] = 0
+--
+--end
 
 
 return RigidBody
