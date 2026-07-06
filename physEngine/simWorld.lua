@@ -28,18 +28,11 @@ local function step()
 		end
 	end
 
+	-- Manual contact generation :skull:
 	ContactGenerators.boxToHalfSpaceContacts(simWorld[2], simWorld[1])
-
-	--trint(1, simWorld[2])
 
 	CollisionSolver:solve(TIME_STEP_DURATION)
 
-	for _, body in ipairs(simWorld) do
-		if not body.colliderOnly then
-			body:applyImpulse()
-			--body:recalculateMotion(TIME_STEP_DURATION)
-		end
-	end
 end
 
 events.tick:register(step)

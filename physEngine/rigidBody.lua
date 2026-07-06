@@ -41,9 +41,6 @@ function RigidBody:new(o)
 	o.vel = vec(0,0,0)
 	o.rot = vec(0,0,0)
 
-	o.deltaVel = vec(0,0,0)
-	o.deltaRot = vec(0,0,0)
-
 	o.totalForce = vec(0,0,0)
 	o.totalTorque = vec(0,0,0)
 
@@ -85,17 +82,9 @@ function RigidBody:calculateDerivedData()
 end
 
 -- World space direction, local application point in world orientation
--- TODO: check this impulse addition's validity
 function RigidBody:addWorldImpulse(impulse, point)
-	self.deltaVel = self.deltaVel + (self.inverseMass * impulse)
-	self.deltaRot = self.deltaRot + (self.inverseInertiaTensorWorld * (point^impulse))
-end
-
-function RigidBody:applyImpulse()
-	self.vel = self.vel + self.deltaVel
-	self.rot = self.rot + self.deltaRot
-	self.deltaVel = vec(0,0,0)
-	self.deltaRot = vec(0,0,0)
+	self.vel = self.vel + (self.inverseMass * impulse)
+	self.rot = self.rot + (self.inverseInertiaTensorWorld * (point^impulse))
 end
 
 -- World space direction, local application point in world orientation
@@ -141,6 +130,7 @@ function RigidBody:integrate(dt)
 	--drint(angularMomentum, self.rot)
 end
 
+--[[ 
 function RigidBody:recalculateMotion(dt)
 
 	-- pos = pos_ + dt*vel
@@ -152,6 +142,6 @@ function RigidBody:recalculateMotion(dt)
 	self.rot = vec(dq[2], dq[3], dq[4])*2/dt
 
 end
-
+--]]
 
 return RigidBody

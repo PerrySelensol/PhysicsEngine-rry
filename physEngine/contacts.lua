@@ -28,17 +28,23 @@ function ContactGenerators.boxBoxContacts(A, B)
 	-- Edge-edge contacts
 end
 
+local function sortByPenetration(contact1, contact2)
+	return contact1.penetration > contact2.penetration
+end
+
 function ContactGenerators.boxToHalfSpaceContacts(box, plane)
 	local worldAxisX, worldAxisY, worldAxisZ = box.oriMat[1], box.oriMat[2], box.oriMat[3]
 	
 	-- Check all vertices
+	local contacts = {}
+
 	for i = -1, 1, 2 do for j = -1, 1, 2 do for k = -1, 1, 2 do
 		local vert = vec(i*box.halfSizeX, j*box.halfSizeY, k*box.halfSizeZ)
 		local vertInWorldSpace = box.oriMat*vert + box.pos
 		local vertInPlaneSpace = plane.dir .. (vertInWorldSpace - plane.pos)
 		if vertInPlaneSpace < 0 then
 			point(vertInWorldSpace)
-			CollisionSolver:addContactData{
+			table.insert(contacts, {
 				A = box,
 
 				contactPoint = vertInWorldSpace,
@@ -47,9 +53,12 @@ function ContactGenerators.boxToHalfSpaceContacts(box, plane)
 				penetration = -vertInPlaneSpace,
 
 				restitution = box.restitution,
-			}
+			})
 		end
 	end end end
+
+	table.sort(contacts, sortByPenetration)
+	for i = 1, #contacts do CollisionSolver:addContactData(contacts[i]) end
 end
 
 return ContactGenerators

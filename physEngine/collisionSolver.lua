@@ -50,7 +50,7 @@ local function calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
 
 	do
 		local angularImpulsePerLinearImpulse = relativeContactPointA ^ contactNormalA
-		local rotPerUnit = A.inverseInertiaTensor * angularImpulsePerLinearImpulse
+		local rotPerUnit = A.inverseInertiaTensorWorld * angularImpulsePerLinearImpulse
 		local velPerUnit = rotPerUnit ^ relativeContactPointA
 
 		angularInertiaA = velPerUnit .. contactNormalA
@@ -63,7 +63,7 @@ local function calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
 		linearInertiaB = B.inverseMass
 
 		local angularImpulsePerLinearImpulse = relativeContactPointB ^ contactNormalA
-		local rotPerUnit = B.inverseInertiaTensor * angularImpulsePerLinearImpulse
+		local rotPerUnit = B.inverseInertiaTensorWorld * angularImpulsePerLinearImpulse
 		local velPerUnit = rotPerUnit ^ relativeContactPointB
 
 		angularInertiaB = velPerUnit .. contactNormalA
@@ -194,7 +194,6 @@ function CollisionSolver:solve(duration)
 			angularInertiaB
 		)
 
-		A:calculateDerivedData()
 		solveVelocity(A, B, contactPoint, contactNormalA, totalInertia, data.friction, data.restitution)
 
 		self[i] = nil
