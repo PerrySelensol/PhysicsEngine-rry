@@ -25,23 +25,35 @@ ContactData: {
 }
 --]]
 
-local function generateOrthoBasis(fixedX, suggestY)
-	local genZ = fixedX^suggestY
+-- Generate an arbitary basis with a given fixed axis
+local generateOrthoBasis; do
+	local Y1, Y2 = vec(1,0,0), vec(0,1,0)
+	local abs, mat3 = math.abs, matrices.mat3
+	function generateOrthoBasis(fixedX)
+		local genZ = fixedX^((abs(fixedX..Y1) < 0.75) and Y1 or Y2)
 
-	-- Bad generation will fail
-	if genZ:lengthSquared() == 0 then return end
+		genZ:normalize()
+		local genY = genZ^fixedX
 
-	genZ:normalize()
-	local genY = genZ^fixedX
-
-	return fixedX, genY, genZ
+		return mat3(fixedX, genY, genZ)
+	end
 end
 
-local function calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
+local function crossMat(v) -- Cross product matrix so that crossMat(v) * u = v ^ u
+	return matrices.mat3(
+		vec(0,		v.z,	-v.y),
+		vec(-v.z,	0,		v.x ),
+		vec(v.y,	-v.x,	0   )
+	)
+end
+
+local I3 = matrices.mat3()
+
+local function calculateInertiaAtContact(A, B, contactPoint, contactMatrix)
 	local totalInertia
 
 	local relativeContactPointA = contactPoint - A.pos
-	local linearInertiaA = A.inverseMass
+	local linearInertiaA = I3 * A.inverseMass
 	local angularInertiaA
 
 	local relativeContactPointB
@@ -49,24 +61,28 @@ local function calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
 	local angularInertiaB
 
 	do
-		local angularImpulsePerLinearImpulse = relativeContactPointA ^ contactNormalA
-		local rotPerUnit = A.inverseInertiaTensorWorld * angularImpulsePerLinearImpulse
-		local velPerUnit = rotPerUnit ^ relativeContactPointA
+		local cross_relativeContactPointA = crossMat(relativeContactPointA)
 
-		angularInertiaA = velPerUnit .. contactNormalA
+		local angularImpulsePerLinearImpulse = cross_relativeContactPointA * contactMatrix
+		local rotPerUnit = A.inverseInertiaTensorWorld * angularImpulsePerLinearImpulse
+		local velPerUnit = cross_relativeContactPointA * rotPerUnit * -1
+
+		angularInertiaA = contactMatrix:transposed() * velPerUnit
 
 		totalInertia = angularInertiaA + linearInertiaA
 	end
 
 	if B then
 		relativeContactPointB = contactPoint - B.pos
-		linearInertiaB = B.inverseMass
+		linearInertiaB = I3 * B.inverseMass
 
-		local angularImpulsePerLinearImpulse = relativeContactPointB ^ contactNormalA
+		local cross_relativeContactPointB = crossMat(relativeContactPointB)
+
+		local angularImpulsePerLinearImpulse = cross_relativeContactPointB * contactMatrix
 		local rotPerUnit = B.inverseInertiaTensorWorld * angularImpulsePerLinearImpulse
-		local velPerUnit = rotPerUnit ^ relativeContactPointB
+		local velPerUnit = cross_relativeContactPointB * rotPerUnit * -1
 
-		angularInertiaB = velPerUnit .. contactNormalA
+		angularInertiaB = contactMatrix:transposed() * velPerUnit
 
 		totalInertia = totalInertia + angularInertiaB + linearInertiaB
 	end
@@ -83,41 +99,59 @@ local function calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
 		angularInertiaB
 end
 
-local function getSeparatingVel(A, B, contactPoint, contactNormalA)
-	local totalSepVel = (A.vel + (A.rot ^ (contactPoint - A.pos))) .. contactNormalA
+local function getSeparatingVel(A, B, contactPoint, contactMatrix)
+	local totalSepVel = A.vel + (A.rot ^ (contactPoint - A.pos))
 	if B then
-		totalSepVel = totalSepVel + (B.vel + (B.rot ^ (contactPoint - B.pos))) .. contactNormalA
+		totalSepVel = totalSepVel + (B.vel + (B.rot ^ (contactPoint - B.pos)))
 	end
-	return totalSepVel
+	return contactMatrix:transposed() * totalSepVel
 end
 
+local VELOCITY_LIMIT = 0.1
 local function solveVelocity(
 	A,
 	B,
 
 	contactPoint,
-	contactNormalA,
+	contactMatrix,
 
 	totalInertia,
 
 	friction,
 	restitution
 )
-	local separatingVel = getSeparatingVel(A, B, contactPoint, contactNormalA)
+	local separatingVel = getSeparatingVel(A, B, contactPoint, contactMatrix)
 
 	-- Pairs of contact points moving away need no solving
-	if separatingVel > 0 then return end
+	if separatingVel.x > 0 then return end
+	if -separatingVel.x < VELOCITY_LIMIT then restitution = 0 end
 
 	-- This is our target separating velocity after collision
-	local targetSepVel = -separatingVel*(1 + restitution)
+	local targetVelChange = vec(
+		-separatingVel.x*(1 + restitution),
+		-0*separatingVel.y,
+		-0*separatingVel.z
+	)
 
 	-- Distribute this targetSepVel to the 2 masses
-	local totalImpulse = targetSepVel / totalInertia
+	local totalImpulse = totalInertia:inverted() * targetVelChange
 
-	local totalImpulseWorld = totalImpulse * contactNormalA
+	local totalImpulseWorld = contactMatrix * totalImpulse
 
 	A:addWorldImpulse(totalImpulseWorld, contactPoint-A.pos)
 	if B then B:addWorldImpulse(-totalImpulseWorld, contactPoint-B.pos) end
+end
+
+local ANGULAR_LIMIT = 0.2
+local function limitAngularMove(linearMove, angularMove, bias)
+	local limit = ANGULAR_LIMIT*bias
+	local totalMove = linearMove + angularMove
+	if angularMove > limit then
+		angularMove = limit
+	elseif angularMove < -limit then
+		angularMove = -limit
+	end
+	return totalMove-angularMove, angularMove
 end
 
 local function solvePenetration(
@@ -141,6 +175,8 @@ local function solvePenetration(
 	local linearMoveA = penetration * linearInertiaA * inverseInertia
 	local angularMoveA = penetration * angularInertiaA * inverseInertia
 
+	linearMoveA, angularMoveA = limitAngularMove(linearMoveA, angularMoveA, relativeContactPointA:length())
+
 	A:nudge(
 		linearMoveA * contactNormalA,
 		A.inverseInertiaTensorWorld * (relativeContactPointA ^ contactNormalA) * (1/angularInertiaA) * angularMoveA
@@ -162,7 +198,7 @@ function CollisionSolver:solve(duration)
 		local A = data.A
 		local B = data.B
 		local contactPoint = data.contactPoint
-		local contactNormalA = data.contactNormalA
+		local contactMatrix = generateOrthoBasis(data.contactNormalA)
 		local penetration = data.penetration
 
 		local
@@ -175,26 +211,26 @@ function CollisionSolver:solve(duration)
 			relativeContactPointB,
 			linearInertiaB,
 			angularInertiaB
-		= calculateInertiaAtContact(A, B, contactPoint, contactNormalA)
-
+		= calculateInertiaAtContact(A, B, contactPoint, contactMatrix)
+---[[ 
 		solvePenetration(
 			A,
 			B,
 			penetration,
-			contactNormalA,
+			data.contactNormalA,
 
-			totalInertia,
+			totalInertia[1][1],
 
 			relativeContactPointA,
-			linearInertiaA,
-			angularInertiaA,
+			linearInertiaA[1][1],
+			angularInertiaA[1][1],
 			
 			relativeContactPointB,
-			linearInertiaB,
-			angularInertiaB
+			B and linearInertiaB[1][1],
+			B and angularInertiaB[1][1]
 		)
-
-		solveVelocity(A, B, contactPoint, contactNormalA, totalInertia, data.friction, data.restitution)
+--]]
+		solveVelocity(A, B, contactPoint, contactMatrix, totalInertia, data.friction, data.restitution)
 
 		self[i] = nil
 	end

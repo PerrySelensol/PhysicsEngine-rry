@@ -7,7 +7,7 @@ local ContactGenerators = require("physEngine/contacts")
 local simWorld = {}
 local simRunning = true
 
-local simWorldPart = models:newPart("simWorldPart", "World")--:pos(16*vec(-233, 63, 165))
+local simWorldPart = models:newPart("simWorldPart", "World")--:pos(16*vec(-481, 128, -304))
 
 local renderName = host:isHost() and "world_render" or "render"
 events[renderName] = function(delta)

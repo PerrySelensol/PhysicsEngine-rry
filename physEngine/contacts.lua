@@ -43,7 +43,8 @@ function ContactGenerators.boxToHalfSpaceContacts(box, plane)
 		local vertInWorldSpace = box.oriMat*vert + box.pos
 		local vertInPlaneSpace = plane.dir .. (vertInWorldSpace - plane.pos)
 		if vertInPlaneSpace < 0 then
-			point(vertInWorldSpace)
+			--point(vertInWorldSpace)
+			--particles["electric_spark"]:lifetime(20):pos(vertInWorldSpace):color(i, j, k):spawn()
 			table.insert(contacts, {
 				A = box,
 
@@ -52,12 +53,14 @@ function ContactGenerators.boxToHalfSpaceContacts(box, plane)
 
 				penetration = -vertInPlaneSpace,
 
-				restitution = box.restitution,
+				restitution = box.restitution*plane.restitution,
+				friction = box.friction*plane.friction
 			})
 		end
 	end end end
 
 	table.sort(contacts, sortByPenetration)
+	--trint(2, contacts)
 	for i = 1, #contacts do CollisionSolver:addContactData(contacts[i]) end
 end
 

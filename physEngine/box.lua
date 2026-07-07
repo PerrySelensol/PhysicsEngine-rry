@@ -26,6 +26,10 @@ do
 					vec(0,				m_12*(x2+z2),	0			),
 					vec(0,				0,				m_12*(y2+x2))
 				):inverted(),
+
+				restitution = 1,
+				friction = 0,
+				
 				renderTask = simWorldPart:newBlock("physCube_"..cube_id):block(blockState)
 			}
 		)

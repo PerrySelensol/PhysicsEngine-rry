@@ -13,7 +13,9 @@ local HalfSpace = {
 function HalfSpace:new(pos, dir)
 	local o = {
 		pos = pos,
-		dir = dir:normalized()
+		dir = dir:normalized(),
+		restitution = 1,
+		friction = 0
 	}
 
 	setmetatable(o, self)
