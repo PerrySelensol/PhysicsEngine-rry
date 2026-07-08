@@ -1,11 +1,11 @@
-local ForceGenerators = require("physEngine/forceGenerators/forceGens")
-local CollisionSolver = require("physEngine/collisionSolver")
-local ContactGenerators = require("physEngine/contacts/contacts")
+local ForceGenerators = require("./forceGenerators/forceGens")
+local CollisionSolver = require("./collisionSolver")
+local ContactGenerators = require("./contacts/init")
 
 --[=============================================================================]--
 
 local simWorld = {}
-local simRunning = false
+local simRunning = true
 
 local simWorldPart = models:newPart("simWorldPart", "World")--:pos(16*vec(-481, 128, -304))
 
@@ -29,7 +29,7 @@ local function step()
 	end
 
 	-- Manual contact generation :skull:
-	ContactGenerators.boxToHalfSpaceContacts(simWorld[2], simWorld[1])
+	ContactGenerators.boxToHalfSpaceContacts(CollisionSolver, simWorld[2], simWorld[1])
 
 	CollisionSolver:solve(TIME_STEP_DURATION)
 
