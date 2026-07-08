@@ -1,8 +1,8 @@
 --===========================================--
--- Rigid Body Physics (Position Based Attempt)
+-- Rigid Body Physics (Old Version)
 --===========================================--
 
-local quatMath = require("physEngine/quaternions")
+local quatMath = require("physEngine/libs/quaternions")
 local quatToRotMat = quatMath.quatToRotMat
 
 	local sin, cos, tan, atan2, pi, deg, rad	= math.sin, math.cos, math.tan, math.atan2, math.pi, math.deg, math.rad

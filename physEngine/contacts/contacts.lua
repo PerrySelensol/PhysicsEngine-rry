@@ -1,5 +1,5 @@
-local quatMath = require("physEngine/quaternions")
-require("physEngine/vectors")
+local quatMath = require("physEngine/libs/quaternions")
+require("physEngine/libs/vectors")
 local CollisionSolver = require("physEngine/collisionSolver")
 
 --[=============================================================================]--

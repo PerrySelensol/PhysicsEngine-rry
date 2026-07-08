@@ -1,7 +1,7 @@
-require("physEngine/quaternions")
-local Box = require("physEngine/box")
-local HalfSpace = require("physEngine/halfSpace")
-local ForceGenerators = require("physEngine/forceGens")
+require("physEngine/libs/quaternions")
+local Box = require("physEngine/rigidBody/box")
+local HalfSpace = require("physEngine/rigidBody/halfSpace")
+local ForceGenerators = require("physEngine/forceGenerators/forceGens")
 
 local CollisionSolver = require("physEngine/collisionSolver")
 
@@ -24,11 +24,11 @@ local q3 = quat(0.9238795325112868,0.3826834323650898,0,0):normalized()
 --:setPos(vec(0,0,0)):setOrientation(quat(1,0,-0.1,-1):normalized())
 --:setVel(vec(0,0,0)):setAngularVelocity(0,0,1)
 
-local box2 = Box:new("slime_block", 4, 1, 1, 1):setRestitution(1):setFriction(1)
-:setPos(vec(0,2,0)):setOrientation(q3)
-:setVel(vec(0,0,0)):setAngularVelocity(0,0,1)
+local box2 = Box:new("slime_block", 1, 1, 1, 1):setRestitution(0.7):setFriction(0)
+:setPos(vec(0,2,0)):setOrientation(q2)
+:setVel(vec(0,0,0)):setAngularVelocity(0.5,0,1)
 
---ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
+ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
 --local box3 = Box:new("glass", 1, 1, 1, 1):setRestitution(1)
 --:setPos(vec(-1.5,0.5+1*math.pi/2,0)):setOrientation(quat(1,0,0,0))

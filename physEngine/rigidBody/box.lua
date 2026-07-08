@@ -1,7 +1,7 @@
 ---@type any, ModelPart
 local simWorld, simWorldPart = require("physEngine/simWorld")
-local RigidBody = require("physEngine/rigidBody")
-local quatMath = require("physEngine/quaternions")
+local RigidBody = require("physEngine/rigidBody/rigidBody")
+local quatMath = require("physEngine/libs/quaternions")
 
 --[=============================================================================]--
 

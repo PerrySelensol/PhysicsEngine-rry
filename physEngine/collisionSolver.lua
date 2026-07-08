@@ -1,5 +1,5 @@
-local quatMath = require("physEngine/quaternions")
-require("physEngine/vectors")
+local quatMath = require("physEngine/libs/quaternions")
+require("physEngine/libs/vectors")
 
 --[=============================================================================]--
 
@@ -215,7 +215,7 @@ function CollisionSolver:solve(duration)
 			linearInertiaB,
 			angularInertiaB
 		= calculateInertiaAtContact(A, B, contactPoint, contactMatrix)
---[[ 
+
 		solvePenetration(
 			A,
 			B,
@@ -232,7 +232,7 @@ function CollisionSolver:solve(duration)
 			B and linearInertiaB[1][1],
 			B and angularInertiaB[1][1]
 		)
---]]
+
 		solveVelocity(A, B, contactPoint, contactMatrix, totalInertia, data.friction, data.restitution)
 
 		self[i] = nil

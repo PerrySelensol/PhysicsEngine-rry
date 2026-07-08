@@ -1,6 +1,6 @@
-local ForceGenerators = require("physEngine/forceGens")
+local ForceGenerators = require("physEngine/forceGenerators/forceGens")
 local CollisionSolver = require("physEngine/collisionSolver")
-local ContactGenerators = require("physEngine/contacts")
+local ContactGenerators = require("physEngine/contacts/contacts")
 
 --[=============================================================================]--
 
