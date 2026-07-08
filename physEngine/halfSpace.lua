@@ -15,7 +15,7 @@ function HalfSpace:new(pos, dir)
 		pos = pos,
 		dir = dir:normalized(),
 		restitution = 1,
-		friction = 0
+		friction = 1
 	}
 
 	setmetatable(o, self)

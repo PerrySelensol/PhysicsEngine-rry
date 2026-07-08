@@ -75,6 +75,11 @@ function RigidBody:setRestitution(res)
 	return self
 end
 
+function RigidBody:setFriction(fric)
+	self.friction = fric
+	return self
+end
+
 function RigidBody:calculateDerivedData()
 	local ori = quatMath.quatToRotMat(self.ori)
 	self.oriMat = ori

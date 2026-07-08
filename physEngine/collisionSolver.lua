@@ -68,6 +68,8 @@ local function calculateInertiaAtContact(A, B, contactPoint, contactMatrix)
 		local velPerUnit = cross_relativeContactPointA * rotPerUnit * -1
 
 		angularInertiaA = contactMatrix:transposed() * velPerUnit
+		--print(contactMatrix:transposed()*cross_relativeContactPointA*A.inverseInertiaTensorWorld*cross_relativeContactPointA*contactMatrix*-1)
+		--print(angularInertiaA)
 
 		totalInertia = angularInertiaA + linearInertiaA
 	end
@@ -129,13 +131,14 @@ local function solveVelocity(
 	-- This is our target separating velocity after collision
 	local targetVelChange = vec(
 		-separatingVel.x*(1 + restitution),
-		-0*separatingVel.y,
-		-0*separatingVel.z
+		-separatingVel.y,
+		-separatingVel.z
 	)
 
 	-- Distribute this targetSepVel to the 2 masses
 	local totalImpulse = totalInertia:inverted() * targetVelChange
 
+	totalImpulse.y, totalImpulse.z = totalImpulse.y*friction, totalImpulse.z*friction
 	local totalImpulseWorld = contactMatrix * totalImpulse
 
 	A:addWorldImpulse(totalImpulseWorld, contactPoint-A.pos)
@@ -212,7 +215,7 @@ function CollisionSolver:solve(duration)
 			linearInertiaB,
 			angularInertiaB
 		= calculateInertiaAtContact(A, B, contactPoint, contactMatrix)
----[[ 
+--[[ 
 		solvePenetration(
 			A,
 			B,
