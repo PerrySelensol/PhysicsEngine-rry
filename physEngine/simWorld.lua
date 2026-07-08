@@ -5,7 +5,7 @@ local ContactGenerators = require("physEngine/contacts/contacts")
 --[=============================================================================]--
 
 local simWorld = {}
-local simRunning = true
+local simRunning = false
 
 local simWorldPart = models:newPart("simWorldPart", "World")--:pos(16*vec(-481, 128, -304))
 
@@ -35,10 +35,10 @@ local function step()
 
 end
 
-events.tick:register(step)
+events.tick[simRunning and "register" or "remove"](events.tick, step)
 keybinds:newKeybind("step", "key.keyboard.page.up"):onPress(function()
-	events.tick[simRunning and "remove" or "register"](events.tick, step)
 	simRunning = not simRunning
+	events.tick[simRunning and "register" or "remove"](events.tick, step)
 end)
 keybinds:newKeybind("step", "key.keyboard.end"):onPress(step)
 

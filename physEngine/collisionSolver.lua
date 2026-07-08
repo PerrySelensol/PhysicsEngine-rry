@@ -68,8 +68,6 @@ local function calculateInertiaAtContact(A, B, contactPoint, contactMatrix)
 		local velPerUnit = cross_relativeContactPointA * rotPerUnit * -1
 
 		angularInertiaA = contactMatrix:transposed() * velPerUnit
-		--print(contactMatrix:transposed()*cross_relativeContactPointA*A.inverseInertiaTensorWorld*cross_relativeContactPointA*contactMatrix*-1)
-		--print(angularInertiaA)
 
 		totalInertia = angularInertiaA + linearInertiaA
 	end
@@ -135,12 +133,26 @@ local function solveVelocity(
 		-separatingVel.z
 	)
 
-	-- Distribute this targetSepVel to the 2 masses
+	-- Distribute this targetVelChange to the 2 bodies
+	-- Bouncing with static friction (planar velocity fully removed)
 	local totalImpulse = totalInertia:inverted() * targetVelChange
 
-	totalImpulse.y, totalImpulse.z = totalImpulse.y*friction, totalImpulse.z*friction
-	local totalImpulseWorld = contactMatrix * totalImpulse
+	-- Bouncing with dynamic friction (I barely understand friction calculation for this :skull:)
+	local planarImpulse = totalImpulse.yz:length()
+	if planarImpulse > totalImpulse.x * friction then
+		totalImpulse.y = totalImpulse.y / planarImpulse
+		totalImpulse.z = totalImpulse.z / planarImpulse
 
+		local totalImpulseX =
+			targetVelChange.x / (totalInertia[1][1]
+			+ totalInertia[2][1]*friction*totalImpulse.y
+			+ totalInertia[3][1]*friction*totalImpulse.z)
+		totalImpulse = totalImpulse*totalImpulseX*friction
+		totalImpulse.x = totalImpulseX
+	end
+
+	-- Impulse in world space then applying it to both bodies
+	local totalImpulseWorld = contactMatrix * totalImpulse
 	A:addWorldImpulse(totalImpulseWorld, contactPoint-A.pos)
 	if B then B:addWorldImpulse(-totalImpulseWorld, contactPoint-B.pos) end
 end

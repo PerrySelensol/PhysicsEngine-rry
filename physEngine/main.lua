@@ -24,9 +24,9 @@ local q3 = quat(0.9238795325112868,0.3826834323650898,0,0):normalized()
 --:setPos(vec(0,0,0)):setOrientation(quat(1,0,-0.1,-1):normalized())
 --:setVel(vec(0,0,0)):setAngularVelocity(0,0,1)
 
-local box2 = Box:new("slime_block", 1, 1, 1, 1):setRestitution(0.7):setFriction(0)
-:setPos(vec(0,2,0)):setOrientation(q2)
-:setVel(vec(0,0,0)):setAngularVelocity(0.5,0,1)
+local box2 = Box:new("slime_block", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.6)
+:setPos(vec(0,5,0)):setOrientation(q1)
+:setVel(vec(0,0,0)):setAngularVelocity(0,2,0)
 
 ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
@@ -41,7 +41,7 @@ ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 --box2:addWorldImpulse(vec(1,0,0), vec(0,1,0))
 
 function events.render()
-	--drint(box2.vel, box2.rot)
+	drint(box2.vel:length(), box2.rot)
 end
 
 --[[ 
