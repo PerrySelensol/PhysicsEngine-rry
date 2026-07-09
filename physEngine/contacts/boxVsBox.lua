@@ -280,12 +280,18 @@ function ContactGenerators.boxbox(solver, A, B)
 	local friction = A.friction*B.friction
 	local restitution = A.restitution*B.restitution
 
-	if minPointFaceIndex and minPointFaceDepth < minEdgeEdgeDepth then; drint("point-face")
+	if minPointFaceIndex and minPointFaceDepth < minEdgeEdgeDepth then
+		-- Vertex-Face contact
+		local testAxis = testAxes[minPointFaceIndex]
+
+		-- Flip so the A's face normal points into A
+		if testAxis .. A_to_B > 0 then testAxis = -testAxis end
+
 		if minPointFaceIndex <= 3 then
 			solver:addContactData(
 				boxA_VS_pointB_contact(
 					A, B, A_to_B,
-					testAxes[minPointFaceIndex], minPointFaceDepth,
+					testAxis, minPointFaceDepth,
 					friction, restitution
 				)
 			)
@@ -293,12 +299,13 @@ function ContactGenerators.boxbox(solver, A, B)
 			solver:addContactData(
 				boxA_VS_pointB_contact(
 					B, A, -A_to_B,
-					testAxes[minPointFaceIndex], minPointFaceDepth,
+					testAxis, minPointFaceDepth,
 					friction, restitution
 				)
 			)
 		end
-	elseif minEdgeEdgeIndex and minEdgeEdgeDepth < minPointFaceDepth then; drint("edge-edge")
+	elseif minEdgeEdgeIndex and minEdgeEdgeDepth < minPointFaceDepth then
+		-- Edge-Edge contact
 		local testAxis = testAxes[minEdgeEdgeIndex]
 
 		-- Flip so the A's face normal points into A
@@ -309,9 +316,9 @@ function ContactGenerators.boxbox(solver, A, B)
 		local halfSizeA = vec(A.halfSizeX, A.halfSizeY, A.halfSizeZ)
 		local halfSizeB = vec(B.halfSizeX, B.halfSizeY, B.halfSizeZ)
 		
+		-- Get correct edge midpoints
 		local edgeMidPointA = halfSizeA:copy()
 		local edgeMidPointB = halfSizeB:copy()
-
 		for i = 1, 3 do
 			if i == axisIndexA then
 				edgeMidPointA[i] = 0

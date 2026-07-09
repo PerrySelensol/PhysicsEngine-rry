@@ -29,6 +29,8 @@ function CollisionSolver:addContactData(data)
 	assert(data.A)
 	assert(data.contactPoint)
 	assert(data.contactNormalA)
+	assert(data.restitution)
+	assert(data.penetration)
 
 	table.insert(self, data)
 end
@@ -110,7 +112,7 @@ end
 local function getSeparatingVel(A, B, contactPoint, contactMatrix)
 	local totalSepVel = A.vel + (A.rot ^ (contactPoint - A.pos))
 	if B then
-		totalSepVel = totalSepVel + (B.vel + (B.rot ^ (contactPoint - B.pos)))
+		totalSepVel = totalSepVel - (B.vel + (B.rot ^ (contactPoint - B.pos)))
 	end
 	return contactMatrix:transposed() * totalSepVel
 end
@@ -220,11 +222,11 @@ function CollisionSolver:solve(duration)
 	for i, data in ipairs(self) do
 		local A = data.A
 		local B = data.B
-		local contactPoint = data.contactPoint; point(contactPoint, vec(0,0,1))
+		local contactPoint = data.contactPoint --point(contactPoint, vec(1,0,0))
 		local contactMatrix = generateOrthoBasis(data.contactNormalA)
 		local penetration = data.penetration
 
-		--[[
+		---[[
 		local
 			totalInertia, -- Change of vel per unit impulse
 

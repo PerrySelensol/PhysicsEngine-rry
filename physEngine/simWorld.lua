@@ -16,6 +16,11 @@ events[renderName] = function(delta)
 	end
 end
 
+local typeOrder = {
+	box = 1,
+	halfSpace = 2,
+}
+
 -- In Figura, tick is running at constant speed,
 -- but we can change the duration to frame time if needed
 local TIME_STEP_DURATION = 1/20
@@ -28,10 +33,15 @@ local function step()
 		end
 	end
 
-	-- Manual contact generation :skull:
-	--ContactGenerators.boxToHalfSpaceContacts(CollisionSolver, simWorld[2], simWorld[1])
-
-	ContactGenerators.boxbox(CollisionSolver, simWorld[2], simWorld[3])
+	-- Currently uses narrow phase only
+	for i = 1, #simWorld do for j = i+1, #simWorld do
+		local typeA, typeB = simWorld[i].type, simWorld[j].type
+		if typeOrder[typeA] <= typeOrder[typeB] then
+			ContactGenerators[typeA .. typeB](CollisionSolver, simWorld[i], simWorld[j])
+		else
+			ContactGenerators[typeB .. typeA](CollisionSolver, simWorld[j], simWorld[i])
+		end
+	end end
 
 	CollisionSolver:solve(TIME_STEP_DURATION)
 
