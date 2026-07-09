@@ -6,6 +6,7 @@ require("physEngine/libs/vectors")
 --[=============================================================================]--
 
 local HalfSpace = {
+	type = "halfSpace",
 	colliderOnly = true,
 	noRender = true
 }

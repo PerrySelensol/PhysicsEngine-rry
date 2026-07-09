@@ -25,6 +25,14 @@ ContactData: {
 }
 --]]
 
+function CollisionSolver:addContactData(data)
+	assert(data.A)
+	assert(data.contactPoint)
+	assert(data.contactNormalA)
+
+	table.insert(self, data)
+end
+
 -- Generate an arbitary basis with a given fixed axis
 local generateOrthoBasis; do
 	local Y1, Y2 = vec(1,0,0), vec(0,1,0)
@@ -212,10 +220,11 @@ function CollisionSolver:solve(duration)
 	for i, data in ipairs(self) do
 		local A = data.A
 		local B = data.B
-		local contactPoint = data.contactPoint
+		local contactPoint = data.contactPoint; point(contactPoint, vec(0,0,1))
 		local contactMatrix = generateOrthoBasis(data.contactNormalA)
 		local penetration = data.penetration
 
+		--[[
 		local
 			totalInertia, -- Change of vel per unit impulse
 
@@ -246,7 +255,7 @@ function CollisionSolver:solve(duration)
 		)
 
 		solveVelocity(A, B, contactPoint, contactMatrix, totalInertia, data.friction, data.restitution)
-
+		--]]
 		self[i] = nil
 	end
 end

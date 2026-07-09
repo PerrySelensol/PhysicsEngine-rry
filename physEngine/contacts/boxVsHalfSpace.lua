@@ -3,7 +3,7 @@ local ContactGenerators = require("./contacts")
 --[=============================================================================]--
 
 local sortByPenetration = ContactGenerators.sortByPenetration
-function ContactGenerators.boxToHalfSpaceContacts(solver, box, plane)
+function ContactGenerators.boxhalfSpace(solver, box, plane)
 	-- Check all vertices
 	local contacts = {}
 

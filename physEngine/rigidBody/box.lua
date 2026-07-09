@@ -5,10 +5,12 @@ local quatMath = require("physEngine/libs/quaternions")
 
 --[=============================================================================]--
 
-local Box = RigidBody:newSubclass()
+local Box = RigidBody:newSubclass{
+	type = "box"
+}
 
 do
-	local cube_id = 0
+	local cube_id = 1
 	local super_new = Box.new
 	function Box:new(blockState, sizeX, sizeY, sizeZ, mass)
 		local x2, y2, z2 = sizeX*sizeX, sizeY*sizeY, sizeZ*sizeZ

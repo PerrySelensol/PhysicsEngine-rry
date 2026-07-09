@@ -449,8 +449,8 @@ local function solveAllNudges(body, h)
 	body.wasNudged = true
 end
 
-local Steps = 1
-local SolveIter = 20
+local Steps = 4
+local SolveIter = 2
 
 function events.tick()
 	--drint(player:getLookDir())
@@ -459,35 +459,31 @@ function events.tick()
 		storeLastTick(v)
 	end
 	--trint(1, Cube_Geometry.vertices)
-
 	for i = 1, Steps do
 		for _, body in pairs(Rigid_Bodies) do
 			step(body, 0.05/Steps)
 		end
-		
 		if pickup then
 			setPos(C1, player:getPos()+vec(0,player:getEyeHeight(),0)+3*player:getLookDir()-OFFSET)
 		end
-
-		cubecubeContact(C1, C2)
-		cubecubeContact(C1, C3)
-		cubecubeContact(C1, C4)
-		cubecubeContact(C2, C3)
-		cubecubeContact(C2, C4)
-		cubecubeContact(C3, C4)
-		for _, body in pairs(Rigid_Bodies) do
-			groundContact(Steps, body)
-		end
-
 		for j = 1, SolveIter do
+			cubecubeContact(C1, C2)
+			cubecubeContact(C1, C3)
+			cubecubeContact(C1, C4)
+			cubecubeContact(C2, C3)
+			cubecubeContact(C2, C4)
+			cubecubeContact(C3, C4)
+			showAllContacts(C2)
+			--trint(2, C2.nudgeQueue)
 			for _, body in pairs(Rigid_Bodies) do
-				solveAllNudges(body, 1)
+				groundContact(Steps, body)
+				solveAllNudges(body, 1/SolveIter)
 			end
 		end
 		for _, body in pairs(Rigid_Bodies) do
 			recalculateMotion(Steps, body)
 			dampVelocities(body, body.bounciness)
-			applyForce(body, body.pos, vec(0,-1,0), 1/Steps)
+			applyForce(body, body.pos, vec(0,-1,0), 0.5/Steps)
 		end
 	end
 end

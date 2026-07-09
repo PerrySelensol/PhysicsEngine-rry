@@ -29,7 +29,9 @@ local function step()
 	end
 
 	-- Manual contact generation :skull:
-	ContactGenerators.boxToHalfSpaceContacts(CollisionSolver, simWorld[2], simWorld[1])
+	--ContactGenerators.boxToHalfSpaceContacts(CollisionSolver, simWorld[2], simWorld[1])
+
+	ContactGenerators.boxbox(CollisionSolver, simWorld[2], simWorld[3])
 
 	CollisionSolver:solve(TIME_STEP_DURATION)
 
