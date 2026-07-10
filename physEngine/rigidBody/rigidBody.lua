@@ -32,6 +32,9 @@ end
 function RigidBody:new(o)
 	o = o or {}
 
+	o.render_pos = vec(0,0,0)
+	o.render_ori = quat(1,0,0,0)
+
 	o.pos_ = vec(0,0,0)
 	o.ori_ = quat(1,0,0,0)
 
@@ -50,7 +53,7 @@ function RigidBody:new(o)
 end
 
 function RigidBody:setPos(pos)
-	self.pos_, self.pos = pos, pos
+	self.render_pos, self.pos_, self.pos = pos, pos, pos
 	return self
 end
 
@@ -61,7 +64,7 @@ end
 
 function RigidBody:setOrientation(ori)
 	ori = ori:normalized()
-	self.ori_, self.ori = ori, ori
+	self.render_ori, self.ori_, self.ori = ori, ori, ori
 	return self
 end
 

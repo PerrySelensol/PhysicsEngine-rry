@@ -10,7 +10,7 @@ local Box = RigidBody:newSubclass{
 }
 
 do
-	local cube_id = 1
+	local boxID = 1
 	local super_new = Box.new
 	function Box:new(blockState, sizeX, sizeY, sizeZ, mass)
 		local x2, y2, z2 = sizeX*sizeX, sizeY*sizeY, sizeZ*sizeZ
@@ -18,6 +18,8 @@ do
 		
 		local o = super_new(self,
 			{
+				id = boxID,
+
 				halfSizeX = sizeX/2,
 				halfSizeY = sizeY/2,
 				halfSizeZ = sizeZ/2,
@@ -32,13 +34,13 @@ do
 				restitution = 1,
 				friction = 0,
 				
-				renderTask = simWorldPart:newBlock("physCube_"..cube_id):block(blockState)
+				renderTask = simWorldPart:newBlock("physBox_"..boxID):block(blockState)
 			}
 		)
 		setmetatable(o, self)
 		self.__index = self
 
-		cube_id = cube_id+1
+		boxID = boxID+1
 		table.insert(simWorld, o)
 		o:calculateDerivedData()
 
@@ -50,7 +52,7 @@ local lerp = math.lerp
 local slerp = quatMath.slerp
 local quatToRotMat = quatMath.quatToRotMat
 function Box:render(delta)
-	local pos_l, ori_l = lerp(self.pos_, self.pos, delta), slerp(self.ori_, self.ori, delta)
+	local pos_l, ori_l = lerp(self.render_pos, self.pos, delta), slerp(self.render_ori, self.ori, delta)
 	self.renderTask:setMatrix(
 		matrices.scale4(16)*
 		matrices.translate4(pos_l)*
