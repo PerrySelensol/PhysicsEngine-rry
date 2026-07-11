@@ -84,28 +84,18 @@ local function edge_VS_edge_contact(edgeMidPointA, edgeDirA, edgeMidPointB, edge
 	return (T_on_A + T_on_B) * 0.5
 end
 
-local function boxA_VS_pointB_contact(A, B, A_to_B, normalAxisA, penetration, friction, restitution)
+local function boxA_VS_pointB_contact(A, B, A_to_B, normalAxisA)
 	-- Flip so the A's face normal points into A
 	if normalAxisA .. A_to_B > 0 then normalAxisA = -normalAxisA end
 
 	-- Find the colliding corner
 	local cornerB = vec(B.halfSizeX, B.halfSizeY, B.halfSizeZ)
-	if (B.oriMat[1] .. normalAxisA) < 0 then cornerB.x = -cornerB.x end
-	if (B.oriMat[2] .. normalAxisA) < 0 then cornerB.y = -cornerB.y end
-	if (B.oriMat[3] .. normalAxisA) < 0 then cornerB.z = -cornerB.z end
+	local cornerID = {"+","+","+"}
+	if (B.oriMat[1] .. normalAxisA) < 0 then cornerB.x = -cornerB.x; cornerID[1] = "-" end
+	if (B.oriMat[2] .. normalAxisA) < 0 then cornerB.y = -cornerB.y; cornerID[2] = "-" end
+	if (B.oriMat[3] .. normalAxisA) < 0 then cornerB.z = -cornerB.z; cornerID[3] = "-" end
 
-	return {
-		A = A,
-		B = B,
-
-		contactPoint = (B.oriMat * cornerB) + B.pos,
-		contactNormalA = normalAxisA,
-
-		penetration = penetration,
-
-		friction = friction,
-		restitution = restitution
-	}
+	return (B.oriMat * cornerB) + B.pos, table.concat(cornerID)
 end
 
 --[[
@@ -234,7 +224,11 @@ function ContactGenerators.boxbox(solver, A, B)
 end
 --]]
 
+local contactCaches = {}
+function events.tick() trint(2, contactCaches) end
+
 function ContactGenerators.boxbox(solver, A, B)
+	local contactID = (A.id < B.id) and A.id.."~"..B.id or B.id.."~"..A.id
 	local A_to_B = B.pos - A.pos
 
 	-- Generate testing axes
@@ -258,7 +252,7 @@ function ContactGenerators.boxbox(solver, A, B)
 
 		-- Return immediately if SAT test does separate the boxes
 		local penetration = testSAT(A, B, A_to_B, testAxes[i])
-		if not penetration then return end
+		if not penetration then contactCaches[contactID] = {} return end
 
 		if i <= 6 then
 			-- Find shallowest of point-face penetrations
@@ -276,6 +270,8 @@ function ContactGenerators.boxbox(solver, A, B)
 		::endOfLoop::
 	end
 
+	local contactCache = contactCaches[contactID]
+
 	-- Get the shallower of the two and add the contact point to the solver
 	local friction = A.friction*B.friction
 	local restitution = A.restitution*B.restitution
@@ -288,23 +284,35 @@ function ContactGenerators.boxbox(solver, A, B)
 		if testAxis .. A_to_B > 0 then testAxis = -testAxis end
 
 		if minPointFaceIndex <= 3 then
-			solver:addContactData(
-				boxA_VS_pointB_contact(
-					A, B, A_to_B,
-					testAxis, minPointFaceDepth,
-					friction, restitution
-				)
-			)
+			local contactPoint, contactVert = boxA_VS_pointB_contact(A, B, A_to_B, testAxis)
+
+			contactCache["vertB"..contactVert] = {
+				A = A, B = B,
+
+				contactPoint = contactPoint,
+				contactNormalA = testAxis,
+
+				penetration = minEdgeEdgeDepth,
+
+				friction = friction,
+				restitution = restitution
+			}
 		else
-			solver:addContactData(
-				boxA_VS_pointB_contact(
-					B, A, -A_to_B,
-					testAxis, minPointFaceDepth,
-					friction, restitution
-				)
-			)
+			local contactPoint, contactVert = boxA_VS_pointB_contact(B, A, -A_to_B, testAxis)
+
+			contactCache["vertA"..contactVert] = {
+				A = B, B = A,
+
+				contactPoint = contactPoint,
+				contactNormalA = -testAxis,
+
+				penetration = minEdgeEdgeDepth,
+
+				friction = friction,
+				restitution = restitution
+			}
 		end
-	elseif minEdgeEdgeIndex and minEdgeEdgeDepth < minPointFaceDepth then
+	elseif minEdgeEdgeIndex and minEdgeEdgeDepth <= minPointFaceDepth then
 		-- Edge-Edge contact
 		local testAxis = testAxes[minEdgeEdgeIndex]
 
@@ -317,19 +325,20 @@ function ContactGenerators.boxbox(solver, A, B)
 		local halfSizeB = vec(B.halfSizeX, B.halfSizeY, B.halfSizeZ)
 		
 		-- Get correct edge midpoints
+		local edgePairID = {"+","+","+","+","+","+"}
 		local edgeMidPointA = halfSizeA:copy()
 		local edgeMidPointB = halfSizeB:copy()
 		for i = 1, 3 do
 			if i == axisIndexA then
-				edgeMidPointA[i] = 0
+				edgeMidPointA[i] = 0; edgePairID[i] = "0"
 			elseif A.oriMat[i] .. testAxis > 0 then
-				edgeMidPointA[i] = -edgeMidPointA[i]
+				edgeMidPointA[i] = -edgeMidPointA[i]; edgePairID[i] = "-"
 			end
 
 			if i == axisIndexB then
-				edgeMidPointB[i] = 0
+				edgeMidPointB[i] = 0; edgePairID[i+3] = "0"
 			elseif B.oriMat[i] .. testAxis < 0 then
-				edgeMidPointB[i] = -edgeMidPointB[i]
+				edgeMidPointB[i] = -edgeMidPointB[i]; edgePairID[i+3] = "-"
 			end
 		end
 
@@ -344,7 +353,7 @@ function ContactGenerators.boxbox(solver, A, B)
 		edgeMidPointA = (A.oriMat * edgeMidPointA) + A.pos
 		edgeMidPointB = (B.oriMat * edgeMidPointB) + B.pos
 
-		solver:addContactData{
+		contactCache["edge"..table.concat(edgePairID)] = {
 			A = A,
 			B = B,
 
@@ -362,6 +371,15 @@ function ContactGenerators.boxbox(solver, A, B)
 			friction = friction,
 			restitution = restitution
 		}
+		--point(contactCache["edge"..table.concat(edgePairID)].contactPoint)
+	end
+
+	for k, contact in next, contactCache do
+		--if contact.penetration < -0.01 then
+		--else
+			solver:addContactData(contact)
+			contactCache[k] = nil
+		--end
 	end
 
 end
