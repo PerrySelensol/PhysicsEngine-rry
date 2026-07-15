@@ -29,16 +29,16 @@ local q4 = quat(0.9238795325112868,0,0.3826834323650898,0):normalized()
 
 local box1 = Box:new("glass", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
 :setPos(vec(0,2.2,0)):setOrientation(q4)
-:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+:setVel(vec(0,0,0)):setAngularVelocity(0,1,0)
 ForceGenerators.register(box1, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
-local box2 = Box:new("spawner", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
+local box2 = Box:new("spawner", 5, 1, 5, 1):setRestitution(0.4):setFriction(0.5)
 :setPos(vec(0,1,0)):setOrientation(q0)
 :setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
 ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
---local box3 = Box:new("honey_block", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
---:setPos(vec(0,4,0)):setOrientation(q0)
+--local box3 = Box:new("honey_block", 1, 1, 1, 1):setRestitution(0):setFriction(1)
+--:setPos(vec(0,2,0)):setOrientation(q1)
 --:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
 --ForceGenerators.register(box3, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
@@ -51,5 +51,5 @@ ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
 
 function events.render()
-	--drint(box2.vel, box2.rot)
+	--drint(box3.pos, box3.ori, box3.vel, box3.rot)
 end

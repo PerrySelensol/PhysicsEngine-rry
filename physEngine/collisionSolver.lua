@@ -11,9 +11,11 @@ end
 function CollisionSolver:solve(duration)
 	for _, contact in ipairs(self) do
 		contact:calculateInertiaAtContact()
+		contact:calculateTargetSepVel()
 		contact:solvePenetration()
+		contact.penetration = contact.penetration*0.2
 	end
-	for _ = 1, 2 do
+	for _ = 1, 4 do
 		for i, contact in ipairs(self) do
 			contact:solveVelocity()
 		end

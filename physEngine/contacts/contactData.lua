@@ -28,6 +28,7 @@ function ContactData:new(o)
 	o = o or {}
 	setmetatable(o, self)
 	self.__index = self
+	o.accumulatedNormalImpulse = 0
 	return o
 end
 
@@ -115,21 +116,34 @@ local function getSeparatingVel(A, B, contactPoint, contactMatrix)
 	return contactMatrix:transposed() * totalSepVel
 end
 
+function ContactData:calculateTargetSepVel()
+	if not self.targetSepVel then
+		local separatingVel = getSeparatingVel(self.A, self.B, self.contactPoint, self.contactMatrix)
+		self.targetSepVel = vec(
+			-separatingVel.x*self.restitution,
+			0,
+			0
+		)
+	end
+end
+
 local SLOW_CLOSING_VELOCITY_LIMIT = 0.1
+local STATIC_FRICTION_BIAS = 0.1
 function ContactData:solveVelocity()
 	local separatingVel = getSeparatingVel(self.A, self.B, self.contactPoint, self.contactMatrix)
 
 	-- Pairs of contact points moving away need no solving
-	if separatingVel.x > 0 then return end
+	--if separatingVel.x > 0 then return end
 	-- Completely remove bouncing for very slow closing velocity
 	if -separatingVel.x < SLOW_CLOSING_VELOCITY_LIMIT then self.restitution = 0 end
 
 	-- This is our target change in separating velocity after collision
-	local targetVelChange = vec(
-		-separatingVel.x*(1 + self.restitution),
-		-separatingVel.y,
-		-separatingVel.z
-	)
+	--local targetVelChange = vec(
+	--	-separatingVel.x*(1 + self.restitution),
+	--	-separatingVel.y,
+	--	-separatingVel.z
+	--)
+	local targetVelChange = self.targetSepVel - separatingVel
 
 	-- Distribute this targetVelChange to the 2 bodies
 	-- Bouncing with static friction (planar velocity fully removed)
@@ -137,7 +151,8 @@ function ContactData:solveVelocity()
 
 	-- Bouncing with dynamic friction (I barely understand friction calculation for this :skull:)
 	local planarImpulse = totalImpulse.yz:length()
-	if planarImpulse > totalImpulse.x * self.friction then
+	if planarImpulse > (totalImpulse.x * self.friction) + STATIC_FRICTION_BIAS then
+		point(self.contactPoint, vec(1,1,1)*math.random())
 		totalImpulse.y = totalImpulse.y / planarImpulse
 		totalImpulse.z = totalImpulse.z / planarImpulse
 
@@ -148,6 +163,11 @@ function ContactData:solveVelocity()
 		totalImpulse = totalImpulse*totalImpulseX*self.friction
 		totalImpulse.x = totalImpulseX
 	end
+
+	-- Clamp accumulated impulse along normal so it's non-negative at the end
+	local oldAccumImpulse = self.accumulatedNormalImpulse
+	self.accumulatedNormalImpulse = math.max(self.accumulatedNormalImpulse + totalImpulse.x, 0)
+	totalImpulse.x = self.accumulatedNormalImpulse - oldAccumImpulse
 
 	-- Convert impulse to world space then applying it to both bodies
 	local totalImpulseWorld = self.contactMatrix * totalImpulse

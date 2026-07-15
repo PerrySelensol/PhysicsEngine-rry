@@ -375,11 +375,11 @@ function ContactGenerators.boxbox(solver, A, B)
 	end
 
 	for k, contact in next, contactCache do
-		--if contact.penetration < -0.01 then
-		--else
-			solver:addContactData(contact)
+		if contact.penetration < -0.001 then
 			contactCache[k] = nil
-		--end
+		else
+			solver:addContactData(contact)
+		end
 	end
 
 end
