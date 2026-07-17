@@ -4,8 +4,19 @@ local ContactData = require("physEngine/contacts/contactData")
 
 local CollisionSolver = {}
 
-function CollisionSolver:addContactData(o)
-	table.insert(self, ContactData:new(o))
+--function CollisionSolver:addContactData(o)
+--	table.insert(self, ContactData:new(o))
+--end
+
+function CollisionSolver:addContactData(data)
+	data = ContactData:new(data)
+	assert(data.A, "no A")
+	assert(data.contactPoint, "no contactPoint")
+	assert(data.contactNormalA, "no normal")
+	assert(data.friction, "no friction")
+	assert(data.restitution, "no restitution")
+
+	table.insert(self, data)
 end
 
 function CollisionSolver:solve(duration)

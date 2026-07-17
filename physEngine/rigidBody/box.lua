@@ -23,6 +23,8 @@ do
 				halfSizeX = sizeX/2,
 				halfSizeY = sizeY/2,
 				halfSizeZ = sizeZ/2,
+
+				halfSizes = vec(sizeX/2, sizeY/2, sizeZ/2),
 			
 				inverseMass = 1/mass,
 				inverseInertiaTensor = matrices.mat3(

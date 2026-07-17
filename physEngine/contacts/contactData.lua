@@ -167,12 +167,14 @@ local function limitAngularMove(linearMove, angularMove, bias)
 	return totalMove-angularMove, angularMove
 end
 
+local RELAX_FACTOR = 0.8
 function ContactData:solvePenetration()
 	if self.penetration <= 0 then return end
 	local inverseInertia = 1 / self.totalInertia[1][1]
+	local penetration = self.penetration * RELAX_FACTOR
 
-	local linearMoveA = self.penetration * self.linearInertiaA[1][1] * inverseInertia
-	local angularMoveA = self.penetration * self.angularInertiaA[1][1] * inverseInertia
+	local linearMoveA = penetration * self.linearInertiaA[1][1] * inverseInertia
+	local angularMoveA = penetration * self.angularInertiaA[1][1] * inverseInertia
 
 	linearMoveA, angularMoveA = limitAngularMove(linearMoveA, angularMoveA, self.relativeContactPointA:length())
 
@@ -186,8 +188,8 @@ function ContactData:solvePenetration()
 	)
 
 	if self.B then
-		local linearMoveB = -self.penetration * self.linearInertiaB[1][1] * inverseInertia
-		local angularMoveB = -self.penetration * self.angularInertiaB[1][1] * inverseInertia
+		local linearMoveB = -penetration * self.linearInertiaB[1][1] * inverseInertia
+		local angularMoveB = -penetration * self.angularInertiaB[1][1] * inverseInertia
 
 		self.B:nudge(
 			linearMoveB * self.contactNormalA,

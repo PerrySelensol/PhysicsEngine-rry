@@ -50,7 +50,11 @@ local abs = math.abs
 
 --]======================================================================]--
 
-local function edge_VS_edge_contact(edgeMidPointA, edgeDirA, edgeMidPointB, edgeDirB, halfSizeA, halfSizeB, selectA)
+local function edge_VS_edge_contact(
+	edgeMidPointA, edgeDirA,
+	edgeMidPointB, edgeDirB,
+	halfSizeA, halfSizeB, reuse
+)
 	-- Assume both edgeDirA and edgeDirB are already normalized
 	local cosTheta = edgeDirB .. edgeDirA
 
@@ -60,28 +64,43 @@ local function edge_VS_edge_contact(edgeMidPointA, edgeDirA, edgeMidPointB, edge
 
 	local sinThetaSquared = 1 - cosTheta*cosTheta
 
-	-- Parallel line case: just use edge midpoint
+	-- Ignore parallel line case
 	if sinThetaSquared < 0.0001 and sinThetaSquared > -0.0001  then
-		return selectA and edgeMidPointA or edgeMidPointB
+		return
 	end
 
 	local lengthAT = (lengthAB_times_cosBeta*cosTheta + lengthAB_times_cosAlpha) / sinThetaSquared
 	local lengthBT = (lengthAB_times_cosAlpha*cosTheta + lengthAB_times_cosBeta) / sinThetaSquared
 
 	-- The solution points lying outside an edge means the edge segments don't intersect
-	-- We can just choose the midpoints as a contact point
 	if (lengthAT > halfSizeA or lengthAT < -halfSizeA or
 		lengthBT > halfSizeB or lengthBT < -halfSizeB)
 	then
-		return selectA and edgeMidPointA or edgeMidPointB
+		return
 	end
 
 	local T_on_A = edgeMidPointA + edgeDirA * lengthAT
 	local T_on_B = edgeMidPointB + edgeDirB * lengthBT
 
-	--for i = 1, 10 do point(edgeMidPointA + (2*math.random()-1)*halfSizeA*edgeDirA) end
+	--if reuse then
+	--	for i = 1, 100 do
+	--		point(edgeMidPointA + (2*math.random()-1)*halfSizeA*edgeDirA, vec(0.2,0.2,0.2))
+	--		point(edgeMidPointB + (2*math.random()-1)*halfSizeB*edgeDirB, vec(0,0,0))
+	--	end
+	--	point(edgeMidPointA, vec(1,0,1))
+	--	point(edgeMidPointB, vec(1,0,1))
+	--else
+	--	--for i = 1, 100 do
+	--	--	point(edgeMidPointA + (2*math.random()-1)*halfSizeA*edgeDirA, vec(0,0.3,0))
+	--	--	point(edgeMidPointB + (2*math.random()-1)*halfSizeB*edgeDirB, vec(0,0.5,0))
+	--	--end
+	--end
 
-	return (T_on_A + T_on_B) * 0.5
+	local vecTbTa = T_on_A - T_on_B
+
+	return
+		(T_on_A + T_on_B) * 0.5,
+		-vecTbTa:length()*math.sign(vecTbTa..vecBA)
 end
 
 local function boxA_VS_pointB_contact(A, B, A_to_B, normalAxisA)
@@ -98,26 +117,26 @@ local function boxA_VS_pointB_contact(A, B, A_to_B, normalAxisA)
 	return (B.oriMat * cornerB) + B.pos, table.concat(cornerID)
 end
 
---[[
-	local A, dirA, lenA = vec(1, 2, 3), vec(1, 1, -1), 2
-	local B, dirB, lenB = vec(2, 3, 4), vec(0.5, -1, 0), 3
-	local col = vec(1,0,0)
+local function point_VS_box_contact(point, box)
+	local pointInBox = box.oriMat:transposed()*(point - box.pos)
 
-	local rand = function() return math.random()*2-1 end
-
-	function events.render()
-		for i = 1, 10 do
-			point(A+dirA:normalized()*lenA*rand(), col)
-		end
-		for i = 1, 10 do
-			point(B+dirB:normalized()*lenB*rand(), col)
-		end
-
-		point(A, vec(0,1,1))
-		point(B, vec(0,1,1))
-		point(nearestPointToTwoEdges(A, dirA:normalized(), B, dirB:normalized(), lenA, lenB, math.random()<0.5), vec(1,1,1))
+	local clampedPoint = pointInBox:copy()
+	for i = 1, 3 do
+		clampedPoint[i] = math.clamp(clampedPoint[i], -box.halfSizes[i], box.halfSizes[i])
 	end
---]]
+	local separation = (pointInBox-clampedPoint):length()
+	if separation > 0 then return point, -separation end
+
+	local penetration, axisIndex = math.huge, nil
+	for i = 1, 3 do
+		local thisAxisPenetration = box.halfSizes[i] - math.abs(pointInBox[i])
+		if thisAxisPenetration < penetration then
+			penetration = thisAxisPenetration
+			axisIndex = i
+		end
+	end
+	return point, penetration
+end
 
 -- Project box onto an axis; by convexity of it,
 -- an endpoint of the projected box is always one of its vertex.
@@ -139,110 +158,101 @@ local function testSAT(A, B, A_to_B, axis)
 	return penetration
 end
 
---[[ Scrapped cursed method for contact generation
-local function AVerticesInBoxB(solver, A, B)
-	-- Check all vertices
-	for i = -1, 1, 2 do for j = -1, 1, 2 do for k = -1, 1, 2 do
-		local vert = vec(i*A.halfSizeX, j*A.halfSizeY, k*A.halfSizeZ)
-		local vertInWorldSpace = A.oriMat*vert + A.pos
-		local vertInBSpace = B.oriMat:transposed() * (vertInWorldSpace - B.pos)
-		if vertInBSpace < 0 then
-			--point(vertInWorldSpace)
-			--particles["electric_spark"]:lifetime(20):pos(vertInWorldSpace):color(i, j, k):spawn()
-			solver:addContactData{
-				A = A,
-				B = B,
+local BOX_POINT = {}
+local EDGE_DIR = {}
+local BOX_AXIS = {}
+do
+	local BOX_DIR = {[-1] = "-", [0] = "0", [1] = "+"}
 
-				contactPoint = vertInWorldSpace,
-				contactNormalA = B.dir,
-
-				penetration = -vertInBSpace,
-
-				restitution = A.restitution*B.restitution,
-				friction = A.friction*B.friction
-			}
-		end
+	for i = -1, 1 do for j = -1, 1 do for k = -1, 1 do
+		local id = BOX_DIR[i]..BOX_DIR[j]..BOX_DIR[k]
+		BOX_POINT[id] = vec(i,j,k)
 	end end end
+
+	for i = -1, 1, 2 do for j = -1, 1, 2 do
+		EDGE_DIR["0"..BOX_DIR[i]..BOX_DIR[j]] = vec(1, 0, 0)
+		EDGE_DIR[BOX_DIR[i].."0"..BOX_DIR[j]] = vec(0, 1, 0)
+		EDGE_DIR[BOX_DIR[i]..BOX_DIR[j].."0"] = vec(0, 0, 1)
+
+		BOX_AXIS["0"..BOX_DIR[i]..BOX_DIR[j]] = 1
+		BOX_AXIS[BOX_DIR[i].."0"..BOX_DIR[j]] = 2
+		BOX_AXIS[BOX_DIR[i]..BOX_DIR[j].."0"] = 3
+	end end
 end
 
-local COHERENT_PENETRATION_LIMIT = 0.02
-function ContactGenerators.boxbox(solver, A, B)
-	local X_A, Y_A, Z_A = A.oriMat[1], A.oriMat[2], A.oriMat[3]
-	local X_B, Y_B, Z_B = B.oriMat[1], B.oriMat[2], B.oriMat[3]
+local contactPairCaches = {
+	--[====[
+	["1~2"] = {
+		["vertA+++"] = {},
+		["edges++0--0"] = {}
+	}
+	--]====]
+}
+--function events.tick() trint(2, contactPairCaches) end
 
-	local A_to_B = B.pos - A.pos
-
-	local testAxes = {}
-	for i = 1, 3 do
-		testAxes[i]		= A.oriMat[i]
-		testAxes[i+3]	= B.oriMat[i]
+local function getContactPointAndPenetration(A, B, featureID)
+	local idType = featureID:sub(1, 5)
+	if idType == "vertA" then
+		local vertA = BOX_POINT[featureID:sub(6)] * A.halfSizes
+		vertA = (A.oriMat * vertA) + A.pos
+		return point_VS_box_contact(vertA, B)
+	elseif idType == "vertB" then
+		local vertB = BOX_POINT[featureID:sub(6)] * B.halfSizes
+		vertB = (B.oriMat * vertB) + B.pos
+		return point_VS_box_contact(vertB, A)
+	else
+		local edgeA_ID, edgeB_ID = featureID:sub(6, 8), featureID:sub(9, 11)
+		edgeA, edgeB = BOX_POINT[edgeA_ID] * A.halfSizes, BOX_POINT[edgeB_ID] * B.halfSizes
+		edgeA, edgeB = (A.oriMat * edgeA) + A.pos, (B.oriMat * edgeB) + B.pos
+		return edge_VS_edge_contact(
+			edgeA, A.oriMat * EDGE_DIR[edgeA_ID],
+			edgeB, B.oriMat * EDGE_DIR[edgeB_ID],
+			A.halfSizes[BOX_AXIS[edgeA_ID]],
+			B.halfSizes[BOX_AXIS[edgeB_ID]],
+			true
+		)
 	end
-	for i = 1, 3 do for j = 1, 3 do
-		local cross = testAxes[i]^testAxes[j+3]
-		-- Ignore the parallel edges
-		testAxes[(i+3*(j-1))+6] = (cross:lengthSquared() > 0.001) and cross:normalized()
-	end end
+end
 
-	local penetrationData = {}
-	local minPenetration
-	for i = 1, 15 do
-		if not testAxes[i] then goto endOfLoop end -- Skip parallel edges
+local COHERENCE_LIMIT = -0.05
+local function generatePartialContactManifoldFromCache(A, B, partialContactPairCache)
+	for id, contact in next, partialContactPairCache do
+		local contactPoint, penetration = getContactPointAndPenetration(A, B, id)
+		--point(contactPoint, vec(0,1,1))
 
-		-- Return immediately if SAT test does separate the boxes
-		local penetration = testSAT(A, B, A_to_B, testAxes[i])
-		if not penetration then return end
-
-		-- Otherwise add the penetration data for this axis
-		-- while also add additional penetration data of similar depth
-		if
-			minPenetration and (abs(penetration - minPenetration) < COHERENT_PENETRATION_LIMIT)
-		then
-			penetrationData[i] = penetration
-		elseif penetration < minPenetration then
-			-- Replace the whole data if a much smaller penetration is found
-			penetrationData = {[i] = penetration}
-		end
-
-		::endOfLoop::
-	end
-
-	-- If this chunk is run, SAT has failed in all axes; there is a collision
-	-- We generate all the contact points from the obtained penetrationData
-	for i = 1, 15 do
-		if not penetrationData[i] then goto endOfLoop end
-		if i <= 3 then
-			-- B's vertices inside A
-			AVerticesInBoxB(solver, B, A)
-		elseif i <= 6 then
-			-- A's vertices inside B
-			AVerticesInBoxB(solver, A, B)
+		-- Contact feature that drifts too far is removed
+		if (not contactPoint) or (penetration < COHERENCE_LIMIT) then
+			partialContactPairCache[id] = nil
 		else
-			-- Edge-edge contacts
+			contact.contactPoint = contactPoint
+			contact.penetration = penetration
 		end
-		::endOfLoop::
 	end
+	return partialContactPairCache
 end
---]]
 
-local contactCaches = {}
-function events.tick() trint(2, contactCaches) end
-
-function ContactGenerators.boxbox(solver, A, B)
-	local contactID = (A.id < B.id) and A.id.."~"..B.id or B.id.."~"..A.id
-	local A_to_B = B.pos - A.pos
-
-	-- Generate testing axes
-	local testAxes = {}
-	for i = 1, 3 do
-		testAxes[i]		= A.oriMat[i]
-		testAxes[i+3]	= B.oriMat[i]
+local function generateFullContactManifold(partialContactPairCache, A_to_B)
+	for _, contact in next, partialContactPairCache do
+		local A, B, axisIndexA, axisIndexB
+			= contact.A, contact.B, contact.axisIndexA, contact.axisIndexB
+		if axisIndexA and axisIndexB then
+			local normal = A.oriMat[axisIndexA] ^ B.oriMat[axisIndexB]
+			if normal .. A_to_B > 0 then normal = -normal end
+			contact.contactNormalA = normal:normalized()
+		elseif axisIndexA then
+			local normal = A.oriMat[axisIndexA]
+			if normal .. A_to_B > 0 then normal = -normal end
+			contact.contactNormalA = normal
+		elseif axisIndexB then
+			local normal = B.oriMat[axisIndexB]
+			if normal .. A_to_B < 0 then normal = -normal end
+			contact.contactNormalA = normal
+		end
 	end
-	for i = 1, 3 do for j = 1, 3 do
-		local cross = testAxes[i]^testAxes[j+3]
-		-- Ignore the parallel edges
-		testAxes[(3*(i-1)+j)+6] = (cross:lengthSquared() > 0.001) and cross:normalized()
-	end end
+	return partialContactPairCache
+end
 
+local function performBoxBoxSAT(A, B, A_to_B, testAxes)
 	local minPointFaceDepth = math.huge
 	local minPointFaceIndex
 	local minEdgeEdgeDepth = math.huge
@@ -252,7 +262,7 @@ function ContactGenerators.boxbox(solver, A, B)
 
 		-- Return immediately if SAT test does separate the boxes
 		local penetration = testSAT(A, B, A_to_B, testAxes[i])
-		if not penetration then contactCaches[contactID] = {} return end
+		if not penetration then return end
 
 		if i <= 6 then
 			-- Find shallowest of point-face penetrations
@@ -270,8 +280,14 @@ function ContactGenerators.boxbox(solver, A, B)
 		::endOfLoop::
 	end
 
-	local contactCache = contactCaches[contactID]
+	return minPointFaceDepth, minPointFaceIndex, minEdgeEdgeDepth, minEdgeEdgeIndex
+end
 
+local function newPartialContactCache(
+	A, B, A_to_B, testAxes,
+	minPointFaceDepth, minPointFaceIndex,
+	minEdgeEdgeDepth, minEdgeEdgeIndex
+)
 	-- Get the shallower of the two and add the contact point to the solver
 	local friction = A.friction*B.friction
 	local restitution = A.restitution*B.restitution
@@ -286,13 +302,13 @@ function ContactGenerators.boxbox(solver, A, B)
 		if minPointFaceIndex <= 3 then
 			local contactPoint, contactVert = boxA_VS_pointB_contact(A, B, A_to_B, testAxis)
 
-			contactCache["vertB"..contactVert] = {
+			return "vertB"..contactVert, {
+				axisIndexA = minPointFaceIndex,
+
 				A = A, B = B,
 
 				contactPoint = contactPoint,
-				contactNormalA = testAxis,
-
-				penetration = minEdgeEdgeDepth,
+				penetration = minPointFaceDepth,
 
 				friction = friction,
 				restitution = restitution
@@ -300,13 +316,13 @@ function ContactGenerators.boxbox(solver, A, B)
 		else
 			local contactPoint, contactVert = boxA_VS_pointB_contact(B, A, -A_to_B, testAxis)
 
-			contactCache["vertA"..contactVert] = {
+			return "vertA"..contactVert, {
+				axisIndexB = minPointFaceIndex-3,
+
 				A = B, B = A,
 
 				contactPoint = contactPoint,
-				contactNormalA = -testAxis,
-
-				penetration = minEdgeEdgeDepth,
+				penetration = minPointFaceDepth,
 
 				friction = friction,
 				restitution = restitution
@@ -321,13 +337,11 @@ function ContactGenerators.boxbox(solver, A, B)
 
 		minEdgeEdgeIndex = minEdgeEdgeIndex - 7
 		local axisIndexA, axisIndexB = math.floor(minEdgeEdgeIndex/3)+1, (minEdgeEdgeIndex%3)+1
-		local halfSizeA = vec(A.halfSizeX, A.halfSizeY, A.halfSizeZ)
-		local halfSizeB = vec(B.halfSizeX, B.halfSizeY, B.halfSizeZ)
 		
 		-- Get correct edge midpoints
 		local edgePairID = {"+","+","+","+","+","+"}
-		local edgeMidPointA = halfSizeA:copy()
-		local edgeMidPointB = halfSizeB:copy()
+		local edgeMidPointA = A.halfSizes:copy()
+		local edgeMidPointB = B.halfSizes:copy()
 		for i = 1, 3 do
 			if i == axisIndexA then
 				edgeMidPointA[i] = 0; edgePairID[i] = "0"
@@ -342,44 +356,88 @@ function ContactGenerators.boxbox(solver, A, B)
 			end
 		end
 
-		--for _ = 1, 20 do
-		--	point(B.oriMat[1]*math.random() + B.pos)
-		--	point(B.oriMat[2]*math.random() + B.pos)
-		--	point(B.oriMat[3]*math.random() + B.pos)
-		--
-		--	point(B.pos + testAxis*math.random())
-		--end
-
 		edgeMidPointA = (A.oriMat * edgeMidPointA) + A.pos
 		edgeMidPointB = (B.oriMat * edgeMidPointB) + B.pos
 
-		contactCache["edge"..table.concat(edgePairID)] = {
-			A = A,
-			B = B,
+		local contactPoint = edge_VS_edge_contact(
+			edgeMidPointA, A.oriMat[axisIndexA],
+			edgeMidPointB, B.oriMat[axisIndexB],
+			A.halfSizes[axisIndexA], B.halfSizes[axisIndexB]
+		)
 
-			contactPoint = edge_VS_edge_contact(
-				edgeMidPointA, A.oriMat[axisIndexA],
-				edgeMidPointB, B.oriMat[axisIndexB],
-				halfSizeA[axisIndexA], halfSizeB[axisIndexB],
-				minPointFaceIndex <= 3
-			),
+		if contactPoint then
+			return "edges"..table.concat(edgePairID), {
+				axisIndexA = axisIndexA,
+				axisIndexB = axisIndexB,
 
-			contactNormalA = testAxis,
+				A = A,
+				B = B,
 
-			penetration = minEdgeEdgeDepth,
+				contactPoint = contactPoint,
+				penetration = minEdgeEdgeDepth,
 
-			friction = friction,
-			restitution = restitution
-		}
-		--point(contactCache["edge"..table.concat(edgePairID)].contactPoint)
+				friction = friction,
+				restitution = restitution
+			}
+		end
+	end
+end
+
+function ContactGenerators.boxbox(solver, A, B)
+	if A.id > B.id then A, B = B, A end
+	local contactPairID = A.id.."~"..B.id
+	local contactPairCache = contactPairCaches[contactPairID]
+	if not contactPairCache then
+		contactPairCache = {}
+		contactPairCaches[contactPairID] = contactPairCache
+	end
+	local A_to_B = B.pos - A.pos
+	
+	-- Generate testing axes
+	local testAxes = {}
+	for i = 1, 3 do
+		testAxes[i]		= A.oriMat[i]
+		testAxes[i+3]	= B.oriMat[i]
+	end
+	for i = 1, 3 do for j = 1, 3 do
+		local cross = testAxes[i]^testAxes[j+3]
+		-- Ignore the parallel edges
+		testAxes[(3*(i-1)+j)+6] = (cross:lengthSquared() > 0.001) and cross:normalized()
+	end end
+
+	local
+		minPointFaceDepth,
+		minPointFaceIndex,
+		minEdgeEdgeDepth,
+		minEdgeEdgeIndex
+	= performBoxBoxSAT(A, B, A_to_B, testAxes)
+	-- Skip everything if SAT does separate the boxes
+	if not minPointFaceDepth then
+		--contactPairCaches[contactPairID] = {}
+		return
 	end
 
-	for k, contact in next, contactCache do
-		--if contact.penetration < -0.01 then
-		--else
-			solver:addContactData(contact)
-			contactCache[k] = nil
-		--end
-	end
+	-- Otherwise get a single partial contact data from SAT
+	local newContactID, newPartialContact = newPartialContactCache(
+		A, B, A_to_B, testAxes,
+		minPointFaceDepth, minPointFaceIndex,
+		minEdgeEdgeDepth, minEdgeEdgeIndex
+	);-- print(newContactID, newPartialContact)
 
+	-- Create partial contact manifold from old contact cache, then add the new one from SAT in
+	local partialContactPairCache = generatePartialContactManifoldFromCache(A, B, contactPairCache)
+	if newContactID then partialContactPairCache[newContactID] = newPartialContact end
+
+	-- Turn the whole thing into full contact manifold data which can be given to solver
+	for _, contact in next, generateFullContactManifold(partialContactPairCache, A_to_B) do
+		solver:addContactData(contact)
+	end
+end
+
+function events.tick()
+	for _, v in next, contactPairCaches do
+		for _, c in next, v do
+			--point(c.contactPoint)
+		end
+	end
 end
