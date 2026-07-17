@@ -70,7 +70,7 @@ local function edge_VS_edge_contact(edgeMidPointA, edgeDirA, edgeMidPointB, edge
 
 	-- The solution points lying outside an edge means the edge segments don't intersect
 	-- We can just choose the midpoints as a contact point
-	if false and (lengthAT > halfSizeA or lengthAT < -halfSizeA or
+	if (lengthAT > halfSizeA or lengthAT < -halfSizeA or
 		lengthBT > halfSizeB or lengthBT < -halfSizeB)
 	then
 		return selectA and edgeMidPointA or edgeMidPointB
