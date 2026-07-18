@@ -122,11 +122,12 @@ function ContactData:solveVelocity()
 	-- Pairs of contact points moving away need no solving
 	if separatingVel.x > 0 then return end
 	-- Completely remove bouncing for very slow closing velocity
-	if -separatingVel.x < SLOW_CLOSING_VELOCITY_LIMIT then self.restitution = 0 end
+	local restitution = self.restitution
+	if -separatingVel.x < SLOW_CLOSING_VELOCITY_LIMIT then restitution = 0 end
 
 	-- This is our target change in separating velocity after collision
 	local targetVelChange = vec(
-		-separatingVel.x*(1 + self.restitution),
+		-separatingVel.x*(1 + restitution),
 		-separatingVel.y,
 		-separatingVel.z
 	)

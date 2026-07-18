@@ -24,7 +24,7 @@ function CollisionSolver:solve(duration)
 		contact:calculateInertiaAtContact()
 		contact:solvePenetration()
 	end
-	for _ = 1, 2 do
+	for _ = 1, 4 do
 		for i, contact in ipairs(self) do
 			contact:solveVelocity()
 		end

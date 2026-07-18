@@ -26,6 +26,8 @@ local typeOrder = {
 local TIME_STEP_DURATION = 1/60
 local SUBSTEPS = 1
 
+local dt = TIME_STEP_DURATION/SUBSTEPS
+
 local function step()
 	for _, body in ipairs(simWorld) do
 		if not body.colliderOnly then
@@ -35,10 +37,12 @@ local function step()
 	end
 
 	for _ = 1, SUBSTEPS do
+		ForceGenerators.updateAllForces(dt)
+		
 		for _, body in ipairs(simWorld) do
 			if not body.colliderOnly then
-				ForceGenerators.updateAllForces(TIME_STEP_DURATION/SUBSTEPS)
-				body:integrate(TIME_STEP_DURATION/SUBSTEPS)
+				body:integrateVelocity(dt)
+				body:calculateDerivedData()
 			end
 		end
 
@@ -54,7 +58,13 @@ local function step()
 			::endOfLoop::
 		end end
 
-		CollisionSolver:solve(TIME_STEP_DURATION/SUBSTEPS)
+		CollisionSolver:solve(dt)
+
+		for _, body in ipairs(simWorld) do
+			if not body.colliderOnly then
+				body:integratePosition(dt)
+			end
+		end
 	end
 end
 

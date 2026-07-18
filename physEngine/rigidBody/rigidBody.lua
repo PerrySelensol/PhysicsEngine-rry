@@ -9,9 +9,6 @@ local RigidBody = {
 	---@type Matrix3
 	inverseInertiaTensorWorld = nil,
 
-	pos_ = nil,
-	ori_ = nil, 
-
 	pos = nil,
 	ori = nil, 
 
@@ -35,9 +32,6 @@ function RigidBody:new(o)
 	o.render_pos = vec(0,0,0)
 	o.render_ori = quat(1,0,0,0)
 
-	o.pos_ = vec(0,0,0)
-	o.ori_ = quat(1,0,0,0)
-
 	o.pos = vec(0,0,0)
 	o.ori = quat(1,0,0,0)
 
@@ -53,7 +47,7 @@ function RigidBody:new(o)
 end
 
 function RigidBody:setPos(pos)
-	self.render_pos, self.pos_, self.pos = pos, pos, pos
+	self.render_pos, self.pos = pos, pos
 	return self
 end
 
@@ -64,7 +58,7 @@ end
 
 function RigidBody:setOrientation(ori)
 	ori = ori:normalized()
-	self.render_ori, self.ori_, self.ori = ori, ori, ori
+	self.render_ori, self.ori = ori, ori
 	return self
 end
 
@@ -120,36 +114,18 @@ end
 -- Very basic integration, doesn't conserve angular momentum (no tennis racket effect x-x)
 -- Any attempts to conserve angular momentum make
 -- the rotation axis converges to the longest principal axis
-function RigidBody:integrate(dt)
-	self.pos_, self.ori_ = self.pos, self.ori
-
+function RigidBody:integrateVelocity(dt)
 	self.vel = self.vel + dt*self.inverseMass*self.totalForce
-	self.pos = self.pos + dt*self.vel
-
-	--local angularMomentum = self.inverseInertiaTensorWorld:inverted()*vec(self.rot:unpack()).yzw
 	self.rot = self.rot + self.inverseInertiaTensorWorld*(dt*self.totalTorque)
-	local halfDt_times_quatRot = quat(0, (0.5*dt*self.rot):unpack())
-	self.ori = (self.ori + halfDt_times_quatRot*self.ori):normalized()
 
-	self:calculateDerivedData()
 	self.totalForce = vec(0,0,0)
 	self.totalTorque = vec(0,0,0)
-	--self.rot = quat(0, (self.inverseInertiaTensorWorld*angularMomentum):unpack())
-	--drint(angularMomentum, self.rot)
 end
 
---[[ 
-function RigidBody:recalculateMotion(dt)
-
-	-- pos = pos_ + dt*vel
-	self.vel = (self.pos - self.pos_)/dt
-
-	-- ori = ori_ + (dt/2)*(rot*ori_)
-	-- Therefore rot = (2/dt)*(ori*#ori_ - quat(1,0,0,0)), but we will ignore the real component anyways
-	local dq = self.ori * #self.ori_
-	self.rot = vec(dq[2], dq[3], dq[4])*2/dt
-
+function RigidBody:integratePosition(dt)
+	self.pos = self.pos + dt*self.vel
+	local halfDt_times_quatRot = quat(0, (0.5*dt*self.rot):unpack())
+	self.ori = (self.ori + halfDt_times_quatRot*self.ori):normalized()
 end
---]]
 
 return RigidBody

@@ -214,7 +214,7 @@ local function getContactPointAndPenetration(A, B, featureID)
 	end
 end
 
-local COHERENCE_LIMIT = -0.05
+local COHERENCE_LIMIT = -0.01
 local function generatePartialContactManifoldFromCache(A, B, partialContactPairCache)
 	for id, contact in next, partialContactPairCache do
 		local contactPoint, penetration = getContactPointAndPenetration(A, B, id)
