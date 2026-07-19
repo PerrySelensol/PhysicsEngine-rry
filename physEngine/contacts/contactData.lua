@@ -5,24 +5,20 @@ require("physEngine/libs/vectors")
 
 local ContactData = {}
 --[[
-ContactData: {
+ContactDataObject = {
 	-- Two bodies, B may be absent (such as when B is immovable)
-	A,
-	B,
+	A, B,
 
-	contactPoint,
+	-- Local contact points; both points must exist, so we can find penetration during solving
+	contactPointA, contactPointB,
 
-	-- Contact normal convention here: A's points into A itself
-	-- B's contact normal is always a negation of A's
-	contactNormalA,
-
-	penetration,
+	-- Contact normal; the contact normal always points into A
+	contactNormal,
 
 	friction,
 	restitution
 }
 --]]
-
 
 function ContactData:new(o)
 	o = o or {}
@@ -56,20 +52,18 @@ end
 local I3 = matrices.mat3()
 
 function ContactData:calculateInertiaAtContact()
-	self.contactMatrix = generateOrthoBasis(self.contactNormalA)
+	self.contactMatrix = generateOrthoBasis(self.contactNormal)
 
 	local totalInertia
 
-	local relativeContactPointA = self.contactPoint - self.A.pos
 	local linearInertiaA = I3 * self.A.inverseMass
 	local angularInertiaA
 
-	local relativeContactPointB
 	local linearInertiaB
 	local angularInertiaB
 
 	do
-		local cross_relativeContactPointA = crossMat(relativeContactPointA)
+		local cross_relativeContactPointA = crossMat(self.A.oriMat * self.contactPointA)
 
 		local angularImpulsePerLinearImpulse = cross_relativeContactPointA * self.contactMatrix
 		local rotPerUnit = self.A.inverseInertiaTensorWorld * angularImpulsePerLinearImpulse
@@ -81,10 +75,9 @@ function ContactData:calculateInertiaAtContact()
 	end
 
 	if self.B then
-		relativeContactPointB = self.contactPoint - self.B.pos
 		linearInertiaB = I3 * self.B.inverseMass
 
-		local cross_relativeContactPointB = crossMat(relativeContactPointB)
+		local cross_relativeContactPointB = crossMat(self.B.oriMat * self.contactPointB)
 
 		local angularImpulsePerLinearImpulse = cross_relativeContactPointB * self.contactMatrix
 		local rotPerUnit = self.B.inverseInertiaTensorWorld * angularImpulsePerLinearImpulse
@@ -97,30 +90,36 @@ function ContactData:calculateInertiaAtContact()
 
 	self.totalInertia = totalInertia
 
-	self.relativeContactPointA = relativeContactPointA
 	self.linearInertiaA = linearInertiaA
 	self.angularInertiaA = angularInertiaA
 
-	self.relativeContactPointB = relativeContactPointB
 	self.linearInertiaB = linearInertiaB
 	self.angularInertiaB = angularInertiaB
 
 end
 
-local function getSeparatingVel(A, B, contactPoint, contactMatrix)
-	local totalSepVel = A.vel + (A.rot ^ (contactPoint - A.pos))
+local function getSeparatingVel(A, B, contactPointA, contactPointB, contactMatrix)
+	local totalSepVel = A.vel + (A.rot ^ contactPointA)
 	if B then
-		totalSepVel = totalSepVel - (B.vel + (B.rot ^ (contactPoint - B.pos)))
+		totalSepVel = totalSepVel - (B.vel + (B.rot ^ contactPointB))
 	end
 	return contactMatrix:transposed() * totalSepVel
 end
 
 local SLOW_CLOSING_VELOCITY_LIMIT = 0.1
 function ContactData:solveVelocity()
-	local separatingVel = getSeparatingVel(self.A, self.B, self.contactPoint, self.contactMatrix)
+	-- Convert contact point to world orientation, but local position
+	local contactPointA = self.A.oriMat*self.contactPointA
+	local contactPointB = self.B and self.B.oriMat*self.contactPointB or self.B_oriMat*self.contactPointB
+
+	local separatingVel = getSeparatingVel(
+		self.A, self.B,
+		contactPointA, contactPointB,
+		self.contactMatrix
+	)
 
 	-- Pairs of contact points moving away need no solving
-	if separatingVel.x > 0 then return end
+	--if separatingVel.x > 0 then return end
 	-- Completely remove bouncing for very slow closing velocity
 	local restitution = self.restitution
 	if -separatingVel.x < SLOW_CLOSING_VELOCITY_LIMIT then restitution = 0 end
@@ -152,8 +151,8 @@ function ContactData:solveVelocity()
 
 	-- Convert impulse to world space then applying it to both bodies
 	local totalImpulseWorld = self.contactMatrix * totalImpulse
-	self.A:addWorldImpulse(totalImpulseWorld, self.contactPoint-self.A.pos)
-	if self.B then self.B:addWorldImpulse(-totalImpulseWorld, self.contactPoint-self.B.pos) end
+	self.A:addWorldImpulse(totalImpulseWorld, contactPointA)
+	if self.B then self.B:addWorldImpulse(-totalImpulseWorld, contactPointB) end
 end
 
 local ANGULAR_LIMIT = 0.1
@@ -180,10 +179,10 @@ function ContactData:solvePenetration()
 	linearMoveA, angularMoveA = limitAngularMove(linearMoveA, angularMoveA, self.relativeContactPointA:length())
 
 	self.A:nudge(
-		linearMoveA * self.contactNormalA,
+		linearMoveA * self.contactNormal,
 		(
 			self.A.inverseInertiaTensorWorld *
-			(self.relativeContactPointA ^ self.contactNormalA) *
+			(self.relativeContactPointA ^ self.contactNormal) *
 			(1/self.angularInertiaA[1][1]) * angularMoveA
 		)
 	)
@@ -193,10 +192,10 @@ function ContactData:solvePenetration()
 		local angularMoveB = -penetration * self.angularInertiaB[1][1] * inverseInertia
 
 		self.B:nudge(
-			linearMoveB * self.contactNormalA,
+			linearMoveB * self.contactNormal,
 			(
 				self.B.inverseInertiaTensorWorld *
-				(self.relativeContactPointB ^ self.contactNormalA) *
+				(self.relativeContactPointB ^ self.contactNormal) *
 				(1/self.angularInertiaB[1][1]) * angularMoveB
 			)
 		)

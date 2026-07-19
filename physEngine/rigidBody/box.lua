@@ -19,11 +19,6 @@ do
 		local o = super_new(self,
 			{
 				id = boxID,
-
-				halfSizeX = sizeX/2,
-				halfSizeY = sizeY/2,
-				halfSizeZ = sizeZ/2,
-
 				halfSizes = vec(sizeX/2, sizeY/2, sizeZ/2),
 			
 				inverseMass = 1/mass,
@@ -59,7 +54,7 @@ function Box:render(delta)
 		matrices.scale4(16)*
 		matrices.translate4(pos_l)*
 		quatToRotMat(ori_l):augmented()*
-		matrices.scale4(self.halfSizeX*2, self.halfSizeY*2, self.halfSizeZ*2)*
+		matrices.scale4(self.halfSizes*2)*
 		matrices.translate4(-0.5,-0.5,-0.5)*
 		matrices.scale4(1/16)
 	)

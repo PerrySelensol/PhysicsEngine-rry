@@ -27,15 +27,15 @@ local q3 = quat(0.9238795325112868,0,0,0.3826834323650898):normalized()
 local q4 = quat(0.9238795325112868,0,0.3826834323650898,0):normalized()
 
 
-local box2 = Box:new("spawner", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
+local box2 = Box:new("spawner", 1, 1, 1, 10000):setRestitution(0.4):setFriction(1)
 :setPos(vec(0,1,0)):setOrientation(quat(1,0,0.2,0))
 :setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
-ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-2,0)))
+--ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-2,0)))
 
-local box1 = Box:new("glass", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
-:setPos(vec(0.4,2.2,0)):setOrientation(q4)
-:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
-ForceGenerators.register(box1, ForceGenerators.gravityForceGen(vec(0,-2,0))); --print(box1)
+local box1 = Box:new("glass", 1, 1, 1, 1):setRestitution(0.4):setFriction(1)
+:setPos(vec(0.4,3.4,0)):setOrientation(q1)
+:setVel(vec(0,-1,0)):setAngularVelocity(0,0,0)
+--ForceGenerators.register(box1, ForceGenerators.gravityForceGen(vec(0,-2,0))); --print(box1)
 
 --local box3 = Box:new("honey_block", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
 --:setPos(vec(0,4,0)):setOrientation(q0)

@@ -80,13 +80,16 @@ end
 function RigidBody:calculateDerivedData()
 	local ori = quatMath.quatToRotMat(self.ori)
 	self.oriMat = ori
+	self.inverseOriMat = ori:transposed()
 	self.inverseInertiaTensorWorld = ori* self.inverseInertiaTensor* ori:transposed()
 end
 
 -- World space direction, local application point in world orientation
-function RigidBody:addWorldImpulse(impulse, point)
+function RigidBody:addWorldImpulse(impulse, point1)
+	point(point1+self.pos)
+	for _ = 1, 30 do local c = math.random() point(point1+self.pos+5*c*impulse, vec(0,c,c)) end
 	self.vel = self.vel + (self.inverseMass * impulse)
-	self.rot = self.rot + (self.inverseInertiaTensorWorld * (point^impulse))
+	self.rot = self.rot + (self.inverseInertiaTensorWorld * (point1^impulse))
 end
 
 -- World space direction, local application point in world orientation

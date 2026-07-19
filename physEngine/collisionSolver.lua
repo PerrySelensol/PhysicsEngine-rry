@@ -11,8 +11,9 @@ local CollisionSolver = {}
 function CollisionSolver:addContactData(data)
 	data = ContactData:new(data)
 	assert(data.A, "no A")
-	assert(data.contactPoint, "no contactPoint")
-	assert(data.contactNormalA, "no normal")
+	assert(data.contactPointA, "no contactPointA")
+	assert(data.contactPointB, "no contactPointB")
+	assert(data.contactNormal, "no normal")
 	assert(data.friction, "no friction")
 	assert(data.restitution, "no restitution")
 
@@ -22,7 +23,7 @@ end
 function CollisionSolver:solve(duration)
 	for _, contact in ipairs(self) do
 		contact:calculateInertiaAtContact()
-		contact:solvePenetration()
+		--contact:solvePenetration()
 	end
 	for _ = 1, 4 do
 		for i, contact in ipairs(self) do
