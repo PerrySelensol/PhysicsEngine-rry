@@ -105,7 +105,7 @@ local function edge_VS_edge_contact(
 		-vecTbTa:length()*math.sign(vecTbTa..vecBA)
 end
 
-local function vertex_VS_box_contact(A, B, vertA, A_to_B)
+local function vertex_VS_box_contact(A, B, vertA)
 	local vertAInBoxB = B.inverseOriMat*((A.oriMat*vertA + A.pos) - B.pos)
 
 	local clampedVertInB = vertAInBoxB:copy()
@@ -126,11 +126,10 @@ local function vertex_VS_box_contact(A, B, vertA, A_to_B)
 		end
 	end
 
-	local A_to_B_in_B_space = B.inverseOriMat*A_to_B
-	if vertAInBoxB .. A_to_B_in_B_space > 0 then
-		vertAInBoxB[axisIndex] = -B.halfSizes[axisIndex]
-	else
+	if vertAInBoxB[axisIndex] > 0 then
 		vertAInBoxB[axisIndex] = B.halfSizes[axisIndex]
+	else
+		vertAInBoxB[axisIndex] = -B.halfSizes[axisIndex]
 	end
 
 	return vertA, vertAInBoxB, penetration
@@ -200,16 +199,30 @@ local contactPairCaches = {
 	}
 	--]====]
 }
-function events.tick() trint(2, contactPairCaches) end
+function events.tick()
+	--trint(2, contactPairCaches)
+	for _, cache in next, contactPairCaches do
+		for id, c in next, cache do
+			local pA = c.A.oriMat*c.contactPointA + c.A.pos
+			local pB = c.B.oriMat*c.contactPointB + c.B.pos
+			if id:sub(1,4) == "vert" then
+				for t=0, 1, 0.125 do point(math.lerp(pA, pB, t), vec(0,1,0)) end
+			else
+				for t=0, 1, 0.125 do point(math.lerp(pA, pB, t), vec(1,0,1)) end
+			end
+		end
+	end
+end
 
-local function getContactInfoFromID(A, B, A_to_B, featureID)
+local function getContactInfoFromID(A, B, featureID)
 	local idType = featureID:sub(1, 5)
 	if idType == "vertA" then
 		local vertA = BOX_POINT[featureID:sub(6)] * A.halfSizes
-		return vertex_VS_box_contact(A, B, vertA, A_to_B)
+		return vertex_VS_box_contact(A, B, vertA)
 	elseif idType == "vertB" then
 		local vertB = BOX_POINT[featureID:sub(6)] * B.halfSizes
-		return vertex_VS_box_contact(B, A, vertB, -A_to_B)
+		local contactA, contactB, penetration = vertex_VS_box_contact(B, A, vertB)
+		return contactB, contactA, penetration
 	else
 		local edgeA_ID, edgeB_ID = featureID:sub(6, 8), featureID:sub(9, 11)
 		edgeA, edgeB = BOX_POINT[edgeA_ID] * A.halfSizes, BOX_POINT[edgeB_ID] * B.halfSizes
@@ -226,9 +239,9 @@ local function getContactInfoFromID(A, B, A_to_B, featureID)
 end
 
 local COHERENCE_LIMIT = -0.01
-local function generatePartialContactManifoldFromCache(A, B, A_to_B, partialContactPairCache)
+local function generatePartialContactManifoldFromCache(A, B, partialContactPairCache)
 	for id, contact in next, partialContactPairCache do
-		local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, A_to_B, id)
+		local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, id)
 
 		-- Contact feature that drifts too far is removed
 		if (not contactPointA) or (penetration < COHERENCE_LIMIT) then
@@ -252,11 +265,11 @@ local function generateFullContactManifold(partialContactPairCache, A_to_B)
 			contact.contactNormal = normal:normalized()
 		elseif axisIndexA then
 			local normal = A.oriMat[axisIndexA]
-			if normal .. A_to_B < 0 then normal = -normal end
+			if normal .. A_to_B > 0 then normal = -normal end
 			contact.contactNormal = normal
 		elseif axisIndexB then
 			local normal = B.oriMat[axisIndexB]
-			if normal .. A_to_B < 0 then normal = -normal end
+			if normal .. A_to_B > 0 then normal = -normal end
 			contact.contactNormal = normal
 		end
 	end
@@ -303,7 +316,7 @@ local function newPartialContactCache(
 	local friction = A.friction*B.friction
 	local restitution = A.restitution*B.restitution
 
-	if faceNormalIndex and minPointFaceDepth < minEdgeEdgeDepth then
+	if faceNormalIndex and minPointFaceDepth <= minEdgeEdgeDepth then
 		-- Vertex-Face contact
 		local testAxis = testAxes[faceNormalIndex]
 
@@ -313,15 +326,15 @@ local function newPartialContactCache(
 		if faceNormalIndex <= 3 then
 			-- B's vertex is inside A
 			local cornerID = "vertB"..getCornerID(B, testAxis, -A_to_B)
-			local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, A_to_B, cornerID)
+			local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, cornerID)
 
 			return cornerID, {
 				axisIndexA = faceNormalIndex,
 
 				A = A, B = B,
 
-				contactPointA = contactPointB,
-				contactPointB = contactPointA,
+				contactPointA = contactPointA,
+				contactPointB = contactPointB,
 				penetration = penetration,
 
 				friction = friction,
@@ -330,7 +343,7 @@ local function newPartialContactCache(
 		else
 			-- A's vertex is inside B
 			local cornerID = "vertA"..getCornerID(A, testAxis, A_to_B)
-			local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, -A_to_B, cornerID)
+			local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, cornerID)
 
 			return cornerID, {
 				axisIndexB = faceNormalIndex-3,
@@ -433,6 +446,7 @@ function ContactGenerators.boxbox(solver, A, B)
 	-- Skip everything if SAT does separate the boxes
 	if not minPointFaceDepth then
 		--contactPairCaches[contactPairID] = {}
+		--print(contactPairID.." skipped")
 		return
 	end
 
@@ -444,7 +458,7 @@ function ContactGenerators.boxbox(solver, A, B)
 	)-- print(newContactID, newPartialContact)
 
 	-- Create partial contact manifold from old contact cache, then add the new one from SAT in
-	local partialContactPairCache = generatePartialContactManifoldFromCache(A, B, A_to_B, contactPairCache)
+	local partialContactPairCache = generatePartialContactManifoldFromCache(A, B, contactPairCache)
 	if newContactID then partialContactPairCache[newContactID] = newPartialContact end
 
 	-- Turn the whole thing into full contact manifold data which can be given to solver

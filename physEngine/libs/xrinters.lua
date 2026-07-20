@@ -127,7 +127,7 @@ end
 --==================== Quick Pos Particle ====================--
 
 function point(v, color)
-	particles.explosion:size(1):color(color):pos(v):lifetime(200000):spawn()
+	particles.explosion:size(1):color(color):pos(v):lifetime(0):spawn()
 end
 
 --==================== Reveal Axis After Mapping ====================--

@@ -119,7 +119,7 @@ function ContactData:solveVelocity()
 	)
 
 	-- Pairs of contact points moving away need no solving
-	--if separatingVel.x > 0 then return end
+	if separatingVel.x > 0 then return end
 	-- Completely remove bouncing for very slow closing velocity
 	local restitution = self.restitution
 	if -separatingVel.x < SLOW_CLOSING_VELOCITY_LIMIT then restitution = 0 end
@@ -133,7 +133,7 @@ function ContactData:solveVelocity()
 
 	-- Distribute this targetVelChange to the 2 bodies
 	-- Bouncing with static friction (planar velocity fully removed)
-	local totalImpulse = self.totalInertia:inverted() * targetVelChange
+	local totalImpulse = self.totalInertia:inverted() * targetVelChange --print(self.totalInertia)
 
 	-- Bouncing with dynamic friction (I barely understand friction calculation for this :skull:)
 	local planarImpulse = totalImpulse.yz:length()
@@ -143,8 +143,8 @@ function ContactData:solveVelocity()
 
 		local totalImpulseX =
 			targetVelChange.x / (self.totalInertia[1][1]
-			+ self.totalInertia[2][1]*self.friction*totalImpulse.y
-			+ self.totalInertia[3][1]*self.friction*totalImpulse.z)
+			+ self.totalInertia[1][2]*self.friction*totalImpulse.y
+			+ self.totalInertia[1][3]*self.friction*totalImpulse.z)
 		totalImpulse = totalImpulse*totalImpulseX*self.friction
 		totalImpulse.x = totalImpulseX
 	end

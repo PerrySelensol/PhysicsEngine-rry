@@ -86,8 +86,8 @@ end
 
 -- World space direction, local application point in world orientation
 function RigidBody:addWorldImpulse(impulse, point1)
-	point(point1+self.pos)
-	for _ = 1, 30 do local c = math.random() point(point1+self.pos+5*c*impulse, vec(0,c,c)) end
+	--point(point1+self.pos, self.id == 2 and vec(1,0,0) or nil)
+	--for i = 1, 40 do local c = i/40 point(point1+self.pos+2*c*impulse, vec(0,c,c)) end
 	self.vel = self.vel + (self.inverseMass * impulse)
 	self.rot = self.rot + (self.inverseInertiaTensorWorld * (point1^impulse))
 end
