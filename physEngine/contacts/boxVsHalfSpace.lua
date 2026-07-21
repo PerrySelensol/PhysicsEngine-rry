@@ -14,6 +14,7 @@ function ContactGenerators.boxhalfSpace(solver, box, plane)
 			solver:addContactData{
 				A = box,
 				B_oriMat = plane.oriMat,
+				B_pos = plane.pos,
 
 				contactPointA = vert,
 				contactPointB = vertInPlaneSpace*vec(1,0,1),

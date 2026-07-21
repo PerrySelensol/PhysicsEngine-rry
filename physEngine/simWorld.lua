@@ -23,8 +23,8 @@ local typeOrder = {
 
 -- In Figura, tick is running at constant speed,
 -- but we can change the duration to frame time if needed
-local TIME_STEP_DURATION = 1/60
-local SUBSTEPS = 1
+local TIME_STEP_DURATION = 1/20
+local SUBSTEPS = 3
 
 local dt = TIME_STEP_DURATION/SUBSTEPS
 

@@ -24,6 +24,7 @@ function ContactData:new(o)
 	o = o or {}
 	setmetatable(o, self)
 	self.__index = self
+	o.accumulatedNormalImpulse = 0
 	return o
 end
 
@@ -107,10 +108,13 @@ local function getSeparatingVel(A, B, contactPointA, contactPointB, contactMatri
 end
 
 local SLOW_CLOSING_VELOCITY_LIMIT = 0.1
-function ContactData:solveVelocity()
+function ContactData:solveVelocity(dt)
 	-- Convert contact point to world orientation, but local position
 	local contactPointA = self.A.oriMat*self.contactPointA
 	local contactPointB = self.B and self.B.oriMat*self.contactPointB or self.B_oriMat*self.contactPointB
+
+	local penetration = self.contactNormal ..
+		((contactPointB + (self.B and self.B.pos or self.B_pos)) - (contactPointA + self.A.pos))
 
 	local separatingVel = getSeparatingVel(
 		self.A, self.B,
@@ -118,15 +122,23 @@ function ContactData:solveVelocity()
 		self.contactMatrix
 	)
 
-	-- Pairs of contact points moving away need no solving
-	if separatingVel.x > 0 then return end
+	-- Skip contact pairs that aren't penetrating (with small tolerance)
+	if penetration < -0.005 then return end
+	--point(self.A.oriMat*self.contactPointA + self.A.pos)
+	
 	-- Completely remove bouncing for very slow closing velocity
-	local restitution = self.restitution
+	local restitution = 0 --self.restitution
 	if -separatingVel.x < SLOW_CLOSING_VELOCITY_LIMIT then restitution = 0 end
 
+	-- Baumgarte Stabilization
+	-- This bias, proportional to penetration depth, is added to target velocity change
+	-- Allows penetrating bodies to push themselves apart
+	local bias = math.max(0, (penetration - 0.01) * (0.2/dt))
+
 	-- This is our target change in separating velocity after collision
+	-- //TODO readd restitution
 	local targetVelChange = vec(
-		-separatingVel.x*(1 + restitution),
+		-separatingVel.x*(1 --[[+ restitution]]) + bias,
 		-separatingVel.y,
 		-separatingVel.z
 	)
@@ -136,8 +148,10 @@ function ContactData:solveVelocity()
 	local totalImpulse = self.totalInertia:inverted() * targetVelChange --print(self.totalInertia)
 
 	-- Bouncing with dynamic friction (I barely understand friction calculation for this :skull:)
+	-- Temporarily always use friction = 1 until I actually implement friction correctly
+	-- //TODO readd proper friction calculation
 	local planarImpulse = totalImpulse.yz:length()
-	if planarImpulse > totalImpulse.x * self.friction then
+	if false and planarImpulse > totalImpulse.x * self.friction then
 		totalImpulse.y = totalImpulse.y / planarImpulse
 		totalImpulse.z = totalImpulse.z / planarImpulse
 
@@ -149,12 +163,18 @@ function ContactData:solveVelocity()
 		totalImpulse.x = totalImpulseX
 	end
 
+	-- Clamp accumulated impulse along normal so it's non-negative at the end
+	local oldAccumImpulse = self.accumulatedNormalImpulse
+	self.accumulatedNormalImpulse = math.max(self.accumulatedNormalImpulse + totalImpulse.x, 0)
+	totalImpulse.x = self.accumulatedNormalImpulse - oldAccumImpulse
+
 	-- Convert impulse to world space then applying it to both bodies
 	local totalImpulseWorld = self.contactMatrix * totalImpulse
 	self.A:addWorldImpulse(totalImpulseWorld, contactPointA)
 	if self.B then self.B:addWorldImpulse(-totalImpulseWorld, contactPointB) end
 end
 
+--[[
 local ANGULAR_LIMIT = 0.1
 local function limitAngularMove(linearMove, angularMove, bias)
 	local limit = ANGULAR_LIMIT*bias
@@ -167,22 +187,27 @@ local function limitAngularMove(linearMove, angularMove, bias)
 	return totalMove-angularMove, angularMove
 end
 
-local RELAX_FACTOR = 0.8
+local RELAX_FACTOR = 0.2
 function ContactData:solvePenetration()
-	if self.penetration <= 0 then return end
+	local contactA = self.A.oriMat*self.contactPointA
+	local contactB = self.B and self.B.oriMat*self.contactPointB or self.B_oriMat*self.contactPointB
+	local penetration = self.contactNormal ..
+		((contactB + (self.B and self.B.pos or self.B_pos)) - (contactA + self.A.pos))
+
+	if penetration <= 0 then return end
 	local inverseInertia = 1 / self.totalInertia[1][1]
-	local penetration = self.penetration * RELAX_FACTOR
+	penetration = penetration * RELAX_FACTOR
 
 	local linearMoveA = penetration * self.linearInertiaA[1][1] * inverseInertia
 	local angularMoveA = penetration * self.angularInertiaA[1][1] * inverseInertia
 
-	linearMoveA, angularMoveA = limitAngularMove(linearMoveA, angularMoveA, self.relativeContactPointA:length())
+	linearMoveA, angularMoveA = limitAngularMove(linearMoveA, angularMoveA, contactA:length())
 
 	self.A:nudge(
 		linearMoveA * self.contactNormal,
 		(
 			self.A.inverseInertiaTensorWorld *
-			(self.relativeContactPointA ^ self.contactNormal) *
+			(contactA ^ self.contactNormal) *
 			(1/self.angularInertiaA[1][1]) * angularMoveA
 		)
 	)
@@ -191,15 +216,18 @@ function ContactData:solvePenetration()
 		local linearMoveB = -penetration * self.linearInertiaB[1][1] * inverseInertia
 		local angularMoveB = -penetration * self.angularInertiaB[1][1] * inverseInertia
 
+		linearMoveB, angularMoveB = limitAngularMove(linearMoveB, angularMoveB, contactB:length())
+
 		self.B:nudge(
 			linearMoveB * self.contactNormal,
 			(
 				self.B.inverseInertiaTensorWorld *
-				(self.relativeContactPointB ^ self.contactNormal) *
+				(contactB ^ self.contactNormal) *
 				(1/self.angularInertiaB[1][1]) * angularMoveB
 			)
 		)
 	end
 end
+--]]
 
 return ContactData

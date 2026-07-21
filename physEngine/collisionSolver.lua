@@ -20,14 +20,13 @@ function CollisionSolver:addContactData(data)
 	table.insert(self, data)
 end
 
-function CollisionSolver:solve(duration)
+function CollisionSolver:solve(dt)
 	for _, contact in ipairs(self) do
 		contact:calculateInertiaAtContact()
-		--contact:solvePenetration()
 	end
 	for _ = 1, 4 do
 		for i, contact in ipairs(self) do
-			contact:solveVelocity()
+			contact:solveVelocity(dt)
 		end
 	end
 	for i = 1, #self do

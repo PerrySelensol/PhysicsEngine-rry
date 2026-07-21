@@ -78,22 +78,26 @@ local q4 = quat(0.9238795325112868,0,0.3826834323650898,0):normalized()
 	local box1 = Box:new("carved_pumpkin", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
 	:setPos(vec(0,0.6,0)):setOrientation(quat(1,0,0.2,0))
 	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
-	ForceGenerators.register(box1, ForceGenerators.gravityForceGen(vec(0,-2,0)))
+	ForceGenerators.register(box1, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
 	local box2 = Box:new("dropper", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(0.4,1.7,0)):setOrientation(q4)
+	:setPos(vec(0,1.7,0)):setOrientation(q4)
 	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
-	ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-2,0)))
+	ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
 	local box3 = Box:new("crafter", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
 	:setPos(vec(0,2.8,0)):setOrientation(q0)
 	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
-	ForceGenerators.register(box3, ForceGenerators.gravityForceGen(vec(0,-2,0)))
+	ForceGenerators.register(box3, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 	
 	local box4 = Box:new("observer", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
 	:setPos(vec(0,3.9,0)):setOrientation(quat(1,0,-0.3,0))
 	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
-	ForceGenerators.register(box4, ForceGenerators.gravityForceGen(vec(0,-2,0)))
+	ForceGenerators.register(box4, ForceGenerators.gravityForceGen(vec(0,-10,0)))
+	
+	local shoot = Box:new("slime_block", 0.5, 0.5, 0.5, 1):setRestitution(0.4):setFriction(0.5)
+	:setPos(vec(30,3,0)):setOrientation(quat(1,0,0,0))
+	:setVel(vec(-3,0,0)):setAngularVelocity(0,0,0)
 --]]
 
 --[[

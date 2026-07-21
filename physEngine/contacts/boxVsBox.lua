@@ -199,20 +199,22 @@ local contactPairCaches = {
 	}
 	--]====]
 }
-function events.tick()
-	--trint(2, contactPairCaches)
-	for _, cache in next, contactPairCaches do
-		for id, c in next, cache do
-			local pA = c.A.oriMat*c.contactPointA + c.A.pos
-			local pB = c.B.oriMat*c.contactPointB + c.B.pos
-			if id:sub(1,4) == "vert" then
-				for t=0, 1, 0.125 do point(math.lerp(pA, pB, t), vec(0,1,0)) end
-			else
-				for t=0, 1, 0.125 do point(math.lerp(pA, pB, t), vec(1,0,1)) end
+--[[
+	function events.tick()
+		--trint(2, contactPairCaches)
+		for _, cache in next, contactPairCaches do
+			for id, c in next, cache do
+				local pA = c.A.oriMat*c.contactPointA + c.A.pos
+				local pB = c.B.oriMat*c.contactPointB + c.B.pos
+				if id:sub(1,4) == "vert" then
+					for t=0, 1, 0.125 do point(math.lerp(pA, pB, t), vec(0,1,0)) end
+				else
+					for t=0, 1, 0.125 do point(math.lerp(pA, pB, t), vec(1,0,1)) end
+				end
 			end
 		end
 	end
-end
+--]]
 
 local function getContactInfoFromID(A, B, featureID)
 	local idType = featureID:sub(1, 5)
@@ -238,12 +240,12 @@ local function getContactInfoFromID(A, B, featureID)
 	end
 end
 
-local COHERENCE_LIMIT = -0.01
+local COHERENCE_LIMIT = -0.2
 local function generatePartialContactManifoldFromCache(A, B, partialContactPairCache)
 	for id, contact in next, partialContactPairCache do
 		local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, id)
 
-		-- Contact feature that drifts too far is removed
+		-- Contact feature pair that drifted too far is removed
 		if (not contactPointA) or (penetration < COHERENCE_LIMIT) then
 			partialContactPairCache[id] = nil
 		else
@@ -296,7 +298,7 @@ local function performBoxBoxSAT(A, B, A_to_B, testAxes)
 			end
 		else
 			-- Find shallowest of edge-edge penetrations
-			if penetration < minEdgeEdgeDepth then
+			if penetration <= minEdgeEdgeDepth then
 				minEdgeEdgeDepth = penetration
 				minEdgeEdgeIndex = i
 			end

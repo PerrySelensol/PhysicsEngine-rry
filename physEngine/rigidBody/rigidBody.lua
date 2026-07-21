@@ -87,7 +87,7 @@ end
 -- World space direction, local application point in world orientation
 function RigidBody:addWorldImpulse(impulse, point1)
 	--point(point1+self.pos, self.id == 2 and vec(1,0,0) or nil)
-	--for i = 1, 40 do local c = i/40 point(point1+self.pos+2*c*impulse, vec(0,c,c)) end
+	--for i = 0, 1, 0.05 do point(point1+self.pos+2*i*impulse, vec(0,i,i)) end
 	self.vel = self.vel + (self.inverseMass * impulse)
 	self.rot = self.rot + (self.inverseInertiaTensorWorld * (point1^impulse))
 end
@@ -97,6 +97,8 @@ function RigidBody:nudge(vel, rot)
 	self.pos = self.pos + vel
 	local half_quatRot = quat(0, (0.5*rot):unpack())
 	self.ori = (self.ori + half_quatRot*self.ori):normalized()
+	self.oriMat = quatMath.quatToRotMat(self.ori)
+	self.inverseOriMat = self.oriMat:transposed()
 end
 
 function RigidBody:addForceAtCenter(force)
