@@ -1,23 +1,13 @@
+local simWorld = require("physEngine/simWorld")
+
 local quatMath = require("physEngine/libs/quaternions")
 local Box = require("physEngine/rigidBody/box")
 local HalfSpace = require("physEngine/rigidBody/halfSpace")
 local ForceGenerators = require("physEngine/forceGenerators/forceGens")
 
-local CollisionSolver = require("physEngine/collisionSolver")
-
 --[=============================================================================]--
 
-local ground = HalfSpace:new(vec(0,0,0), vec(0,1,0))
---local ceiling = HalfSpace:new(vec(0,10,0), vec(0,-1,0))
---
---local SIZE = 5
---local wall1 = HalfSpace:new(vec(-SIZE,0,0), vec(1,0,0))
---local wall2 = HalfSpace:new(vec(SIZE,0,0), vec(-1,0,0))
---local wall3 = HalfSpace:new(vec(0,0,-SIZE), vec(0,0,1))
---local wall4 = HalfSpace:new(vec(0,0,SIZE), vec(0,0,-1))
---
---local simWorldPart = models.simWorldPart
---renderTask = simWorldPart:newBlock("jail"):block("glass"):scale(SIZE*2, 10, -SIZE*2):pos(-SIZE*16,0,SIZE*16)
+local ground = simWorld:addRigidBody(HalfSpace:new(vec(0,0,0), vec(0,1,0)))
 
 local ROTS = {}; do
 	local generateOrthoBasis; do
@@ -42,14 +32,6 @@ local ROTS = {}; do
 	end end end
 end
 
-local q0 = quat(1,0,0,0)
---local q1 = quat(0.888073833977, 0.32505758, 0, 0.32505758):normalized()
-local q1 = quat(0, 0.624784, 0.455179, 0.624784):normalized()
-
-local q2 = quat(0.9238795325112868,0.3826834323650898,0,0):normalized()
-local q3 = quat(0.9238795325112868,0,0,0.3826834323650898):normalized()
-local q4 = quat(0.9238795325112868,0,0.3826834323650898,0):normalized()
-
 --[[
 	local box1 = Box:new("carved_pumpkin", 1, 1, 1, 10000):setRestitution(1):setFriction(0)
 	:setPos(vec(0,1,0)):setOrientation(ROTS["+00"] + quat(0,0,0.1,-0.1))
@@ -64,40 +46,50 @@ local q4 = quat(0.9238795325112868,0,0.3826834323650898,0):normalized()
 
 --[[
 	local box2 = Box:new("glass", 1, 1, 1, 10000):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(0.4,1.7,0)):setOrientation(q4)
+	:setPos(vec(0.4,1.7,0)):setOrientation(quat(1,0,0.4,0))
 	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0.4)
 	--ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-2,0)))
 
 	local box3 = Box:new("spawner", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(0,2.65,0)):setOrientation(q0+quat(0,0.05,0,0))
+	:setPos(vec(0,2.65,0)):setOrientation(quat(1,0.05,0,0))
 	:setVel(vec(0,0,0)):setAngularVelocity(-0.2,0,0)
 	--ForceGenerators.register(box3, ForceGenerators.gravityForceGen(vec(0,-2,0)))
 --]]
 
 ---[[
-	local box1 = Box:new("carved_pumpkin", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(0,0.6,0)):setOrientation(quat(1,0,0.2,0))
-	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	local box1 = simWorld:addRigidBody(
+		Box:new("carved_pumpkin", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
+		:setPos(vec(0,0.6,0)):setOrientation(quat(1,0,0.2,0))
+		:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	)
 	ForceGenerators.register(box1, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
-	local box2 = Box:new("dropper", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(0,1.7,0)):setOrientation(q4)
-	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	local box2 = simWorld:addRigidBody(
+		Box:new("dropper", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
+		:setPos(vec(0,1.7,0)):setOrientation(quat(1,0,0.4,0))
+		:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	)
 	ForceGenerators.register(box2, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 
-	local box3 = Box:new("crafter", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(0,2.8,0)):setOrientation(q0)
-	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	local box3 = simWorld:addRigidBody(
+		Box:new("crafter", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
+		:setPos(vec(0,2.8,0)):setOrientation(quat(1,0,0,0))
+		:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	)
 	ForceGenerators.register(box3, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 	
-	local box4 = Box:new("observer", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(0,3.9,0)):setOrientation(quat(1,0,-0.3,0))
-	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	local box4 = simWorld:addRigidBody(
+		Box:new("observer", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
+		:setPos(vec(0,3.9,0)):setOrientation(quat(1,0,-0.3,0))
+		:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
+	)
 	ForceGenerators.register(box4, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 	
-	local shoot = Box:new("slime_block", 0.5, 0.5, 0.5, 1):setRestitution(0.4):setFriction(0.5)
-	:setPos(vec(30,3,0)):setOrientation(quat(1,0,0,0))
-	:setVel(vec(-3,0,0)):setAngularVelocity(0,0,0)
+	--local shoot = simWorld:addRigidBody(
+	--	Box:new("slime_block", 0.5, 0.5, 0.5, 1):setRestitution(0.4):setFriction(0.5)
+	--	:setPos(vec(30,3,0)):setOrientation(quat(1,0,0,0))
+	--	:setVel(vec(-3,0,0)):setAngularVelocity(0,0,0)
+	--)
 --]]
 
 --[[
@@ -106,6 +98,8 @@ local q4 = quat(0.9238795325112868,0,0.3826834323650898,0):normalized()
 	:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
 	ForceGenerators.register(box1, ForceGenerators.gravityForceGen(vec(0,-10,0)))
 --]]
+
+--printTable(simWorld.rigidBodies)
 
 function events.render()
 	--drint(box2.vel, box2.rot)

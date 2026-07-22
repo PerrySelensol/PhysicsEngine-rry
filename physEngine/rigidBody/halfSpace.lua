@@ -1,6 +1,3 @@
----@type any, ModelPart
-local simWorld, simWorldPart = require("physEngine/simWorld")
-local quatMath = require("physEngine/libs/quaternions")
 require("physEngine/libs/vectors")
 
 --[=============================================================================]--
@@ -37,7 +34,6 @@ function HalfSpace:new(pos, dir)
 	setmetatable(o, self)
 	self.__index = self
 
-	table.insert(simWorld, o)
 	return o
 end
 

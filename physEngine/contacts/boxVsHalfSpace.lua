@@ -2,7 +2,7 @@ local ContactGenerators = require("./contacts")
 
 --[=============================================================================]--
 
-function ContactGenerators.boxhalfSpace(solver, box, plane)
+function ContactGenerators.boxhalfSpace(world, box, plane)
 	-- Check all vertices
 	for i = -1, 1, 2 do for j = -1, 1, 2 do for k = -1, 1, 2 do
 
@@ -11,7 +11,9 @@ function ContactGenerators.boxhalfSpace(solver, box, plane)
 		local vertInPlaneSpace = plane.inverseOriMat*(vertInWorldSpace - plane.pos)
 
 		if vertInPlaneSpace.y < 0 then
-			solver:addContactData{
+			world:addConstraint{
+				type = "contact",
+
 				A = box,
 				B_oriMat = plane.oriMat,
 				B_pos = plane.pos,

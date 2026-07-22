@@ -1,45 +1,71 @@
 local ForceGenerators = require("./forceGenerators/forceGens")
-local CollisionSolver = require("./collisionSolver")
 local ContactGenerators = require("./contacts/init")
+
+local pgs = require("physEngine/solvers/pgs")
 
 --[=============================================================================]--
 
-local simWorld = {}
-local simRunning = true
-
-local simWorldPart = models:newPart("simWorldPart", "World")--:pos(16*vec(50, 259, 21))
-
-local renderName = host:isHost() and "world_render" or "render"
-events[renderName] = function(delta)
-	for _, body in ipairs(simWorld) do
-		if not body.noRender then body:render(simRunning and delta or 1) end
-	end
-end
-
-local typeOrder = {
+local BODY_ORDER = {
 	box = 1,
 	halfSpace = 2,
 }
 
--- In Figura, tick is running at constant speed,
--- but we can change the duration to frame time if needed
-local TIME_STEP_DURATION = 1/20
-local SUBSTEPS = 3
+local simWorld = {
+	isRunning = true,
+	worldPart = models:newPart("simWorldPart", "World"),
 
-local dt = TIME_STEP_DURATION/SUBSTEPS
+	rigidBodies = {},
+	constraints = {},
+	solver = "pgs",
 
-local function step()
-	for _, body in ipairs(simWorld) do
+	-- In Figura, tick is running at constant speed,
+	-- but we can change the duration to frame time if needed
+	stepDuration = 1/20,
+	worldSubsteps = 3,
+
+	velocityIterations = 4
+}
+--simWorld.worldPart:pos(16*vec(50, 259, 21))
+
+function simWorld:render(delta)
+	for _, body in next, self.rigidBodies do
+		if not body.noRender then body:render(self.isRunning and delta or 1) end
+	end
+end
+
+function simWorld:addRigidBody(body) table.insert(self.rigidBodies, body) return body end
+
+function simWorld:addConstraint(data)
+	assert(data.type, "no type")
+	assert(data.A, "no A")
+	if data.type == "contact" then
+		assert(data.contactPointA, "no contactPointA")
+		assert(data.contactPointB, "no contactPointB")
+		assert(data.contactNormal, "no normal")
+		assert(data.friction, "no friction")
+		assert(data.restitution, "no restitution")
+	end
+
+	table.insert(self.constraints, data)
+end
+
+function simWorld:step(manualStep)
+	if not (self.isRunning or manualStep) then return end
+
+	local dt = self.stepDuration/self.worldSubsteps
+	local rigidBodies = self.rigidBodies
+
+	for _, body in ipairs(rigidBodies) do
 		if not body.colliderOnly then
 			body.render_pos = body.pos
 			body.render_ori = body.ori
 		end
 	end
 
-	for _ = 1, SUBSTEPS do
+	for _ = 1, self.worldSubsteps do
+
 		ForceGenerators.updateAllForces(dt)
-		
-		for _, body in ipairs(simWorld) do
+		for _, body in ipairs(rigidBodies) do
 			if not body.colliderOnly then
 				body:integrateVelocity(dt)
 				body:calculateDerivedData()
@@ -47,32 +73,33 @@ local function step()
 		end
 
 		-- Currently uses narrow phase only
-		for i = 1, #simWorld do for j = i+1, #simWorld do
-			local typeA, typeB = simWorld[i].type, simWorld[j].type
+		for i = 1, #rigidBodies do for j = i+1, #rigidBodies do
+			local typeA, typeB = rigidBodies[i].type, rigidBodies[j].type
 			if typeA == "halfSpace" and typeB == "halfSpace" then goto endOfLoop end
-			if typeOrder[typeA] <= typeOrder[typeB] then
-				ContactGenerators[typeA .. typeB](CollisionSolver, simWorld[i], simWorld[j])
+			if BODY_ORDER[typeA] <= BODY_ORDER[typeB] then
+				ContactGenerators[typeA .. typeB](self, rigidBodies[i], rigidBodies[j])
 			else
-				ContactGenerators[typeB .. typeA](CollisionSolver, simWorld[j], simWorld[i])
+				ContactGenerators[typeB .. typeA](self, rigidBodies[j], rigidBodies[i])
 			end
 			::endOfLoop::
 		end end
 
-		CollisionSolver:solve(dt)
+		pgs(self)
 
-		for _, body in ipairs(simWorld) do
-			if not body.colliderOnly then
-				body:integratePosition(dt)
-			end
-		end
 	end
 end
 
-events.tick[simRunning and "register" or "remove"](events.tick, step)
-keybinds:newKeybind("step", "key.keyboard.page.up"):onPress(function()
-	simRunning = not simRunning
-	events.tick[simRunning and "register" or "remove"](events.tick, step)
-end)
-keybinds:newKeybind("step", "key.keyboard.end"):onPress(step)
+--[=============================================================================]--
 
-return simWorld, simWorldPart
+function events.tick() simWorld:step() end
+local renderName = host:isHost() and "world_render" or "render"
+events[renderName] = function(delta) simWorld:render(delta) end
+
+keybinds:newKeybind("pause/play", "key.keyboard.page.up"):onPress(function()
+	simWorld.isRunning = not simWorld.isRunning
+end)
+keybinds:newKeybind("step", "key.keyboard.end"):onPress(function()
+	simWorld:step(true)
+end)
+
+return simWorld

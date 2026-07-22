@@ -1,5 +1,4 @@
----@type any, ModelPart
-local simWorld, simWorldPart = require("physEngine/simWorld")
+local simWorld = require("physEngine/simWorld")
 local RigidBody = require("physEngine/rigidBody/rigidBody")
 local quatMath = require("physEngine/libs/quaternions")
 
@@ -31,7 +30,7 @@ do
 				restitution = 1,
 				friction = 0,
 				
-				renderTask = simWorldPart:newBlock("physBox_"..boxID):block(blockState)
+				renderTask = simWorld.worldPart:newBlock("physBox_"..boxID):block(blockState)
 			}
 		)
 		setmetatable(o, self)

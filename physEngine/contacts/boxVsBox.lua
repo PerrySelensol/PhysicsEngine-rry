@@ -331,6 +331,8 @@ local function newPartialContactCache(
 			local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, cornerID)
 
 			return cornerID, {
+				type = "contact",
+
 				axisIndexA = faceNormalIndex,
 
 				A = A, B = B,
@@ -348,6 +350,8 @@ local function newPartialContactCache(
 			local contactPointA, contactPointB, penetration = getContactInfoFromID(A, B, cornerID)
 
 			return cornerID, {
+				type = "contact",
+
 				axisIndexB = faceNormalIndex-3,
 
 				A = A, B = B,
@@ -400,6 +404,8 @@ local function newPartialContactCache(
 
 		if contactPointA then
 			return "edges"..table.concat(edgePairID), {
+				type = "contact",
+
 				axisIndexA = axisIndexA,
 				axisIndexB = axisIndexB,
 
@@ -417,7 +423,7 @@ local function newPartialContactCache(
 	end
 end
 
-function ContactGenerators.boxbox(solver, A, B)
+function ContactGenerators.boxbox(world, A, B)
 	if A.id > B.id then A, B = B, A end
 	local contactPairID = A.id.."~"..B.id
 	local contactPairCache = contactPairCaches[contactPairID]
@@ -463,9 +469,9 @@ function ContactGenerators.boxbox(solver, A, B)
 	local partialContactPairCache = generatePartialContactManifoldFromCache(A, B, contactPairCache)
 	if newContactID then partialContactPairCache[newContactID] = newPartialContact end
 
-	-- Turn the whole thing into full contact manifold data which can be given to solver
+	-- Turn the whole thing into full contact manifold data which can be added as constraints
 	for _, contact in next, generateFullContactManifold(partialContactPairCache, A_to_B) do
-		solver:addContactData(contact)
+		world:addConstraint(contact)
 	end
 end
 
