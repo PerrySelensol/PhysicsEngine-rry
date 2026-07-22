@@ -6,7 +6,7 @@ local common = require("./common")
 --[=============================================================================]--
 
 local SLOW_CLOSING_VELOCITY_LIMIT = 0.1
-local function solveContact(contact, dt)
+local function solveContact(contact, dt, useBias)
 	-- Convert contact point to world orientation, but local position
 	local contactPointA = contact.A.oriMat*contact.contactPointA
 	local contactPointB = contact.B and contact.B.oriMat*contact.contactPointB or contact.B_oriMat*contact.contactPointB
@@ -22,7 +22,7 @@ local function solveContact(contact, dt)
 
 	-- Skip contact pairs that aren't penetrating (with small tolerance)
 	if penetration < -0.005 then return end
-	point(contact.A.oriMat*contact.contactPointA + contact.A.pos)
+	--point(self.A.oriMat*self.contactPointA + self.A.pos)
 	
 	-- Completely remove bouncing for very slow closing velocity
 	local restitution = 0 --self.restitution
@@ -31,8 +31,11 @@ local function solveContact(contact, dt)
 	-- Baumgarte Stabilization
 	-- This bias, proportional to penetration depth, is added to total impulse
 	-- Allows penetrating bodies to push themselves apart
-	local bias = math.max(0, (penetration - 0.01) * (0.2/dt))
-	local impulseNormalBias = bias / contact.totalInertia[1][1]
+	local impulseNormalBias = 0
+	if useBias then
+		local bias = math.max(0, (penetration - 0.01) * (0.2/dt))
+		impulseNormalBias = bias / contact.totalInertia[1][1]
+	end
 
 	-- This is our target change in separating velocity after collision
 	-- //TODO readd restitution
@@ -44,7 +47,7 @@ local function solveContact(contact, dt)
 
 	-- Distribute this targetVelChange to the 2 bodies
 	-- Bouncing with static friction (planar velocity fully removed)
-	--local totalImpulse = contact.totalInertia:inverted() * targetVelChange --print(self.totalInertia)
+	--local totalImpulse = contact.totalInertia:inverted() * targetVelChange
 	local totalImpulse = targetVelChange.x__ / contact.totalInertia[1][1]
 	totalImpulse.x = totalImpulse.x + impulseNormalBias
 
@@ -79,19 +82,38 @@ end
 return function(world)
 	local dt = world.stepDuration/world.worldSubsteps
 
-	world:integrateBodyVelocities(dt)
-	
 	for _, contact in ipairs(world.constraints) do
 		common.prepareContact(contact)
 	end
 
 	for _ = 1, world.velocityIterations do
+
+		local h = dt/world.velocityIterations
+
+		world:integrateBodyVelocities(h)
+
 		for i, contact in ipairs(world.constraints) do
-			solveContact(contact, dt)
+			solveContact(contact, h, true)
 		end
+
+		world:integrateBodyPositions(h)
+
 	end
+
+	--[[
+		for _ = 1, world.positionIterations do
+
+			local h = dt/world.velocityIterations
+
+			world:integrateBodyVelocities(h)
+
+			for i, contact in ipairs(world.constraints) do
+				solveContact(contact, h, false)
+			end
+
+		end
+	--]]
 
 	for i = 1, #world.constraints do world.constraints[i] = nil end
 
-	world:integrateBodyPositions(dt)
 end

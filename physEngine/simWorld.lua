@@ -1,7 +1,7 @@
 local ForceGenerators = require("./forceGenerators/forceGens")
 local ContactGenerators = require("./contacts/init")
 
-local pgs = require("physEngine/solvers/pgs")
+local Solvers = require("physEngine/solvers/init")
 
 --[=============================================================================]--
 
@@ -21,9 +21,10 @@ local simWorld = {
 	-- In Figura, tick is running at constant speed,
 	-- but we can change the duration to frame time if needed
 	stepDuration = 1/20,
-	worldSubsteps = 3,
+	worldSubsteps = 2,
 
-	velocityIterations = 4
+	velocityIterations = 4,
+	positionIterations = 2
 }
 --simWorld.worldPart:pos(16*vec(50, 259, 21))
 
@@ -34,6 +35,23 @@ function simWorld:render(delta)
 end
 
 function simWorld:addRigidBody(body) table.insert(self.rigidBodies, body) return body end
+
+function simWorld:integrateBodyPositions(dt)
+	for _, body in ipairs(self.rigidBodies) do
+		if not body.colliderOnly then
+			body:integratePosition(dt)
+			body:calculateDerivedData()
+		end
+	end
+end
+function simWorld:integrateBodyVelocities(dt)
+	ForceGenerators.updateAllForces(dt)
+	for _, body in ipairs(self.rigidBodies) do
+		if not body.colliderOnly then
+			body:integrateVelocity(dt)
+		end
+	end
+end
 
 function simWorld:addConstraint(data)
 	assert(data.type, "no type")
@@ -64,14 +82,6 @@ function simWorld:step(manualStep)
 
 	for _ = 1, self.worldSubsteps do
 
-		ForceGenerators.updateAllForces(dt)
-		for _, body in ipairs(rigidBodies) do
-			if not body.colliderOnly then
-				body:integrateVelocity(dt)
-				body:calculateDerivedData()
-			end
-		end
-
 		-- Currently uses narrow phase only
 		for i = 1, #rigidBodies do for j = i+1, #rigidBodies do
 			local typeA, typeB = rigidBodies[i].type, rigidBodies[j].type
@@ -84,7 +94,7 @@ function simWorld:step(manualStep)
 			::endOfLoop::
 		end end
 
-		pgs(self)
+		Solvers[self.solver](self)
 
 	end
 end

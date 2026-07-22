@@ -77,7 +77,7 @@ end
 		:setVel(vec(0,0,0)):setAngularVelocity(0,0,0)
 	)
 	ForceGenerators.register(box3, ForceGenerators.gravityForceGen(vec(0,-10,0)))
-	
+
 	local box4 = simWorld:addRigidBody(
 		Box:new("observer", 1, 1, 1, 1):setRestitution(0.4):setFriction(0.5)
 		:setPos(vec(0,3.9,0)):setOrientation(quat(1,0,-0.3,0))

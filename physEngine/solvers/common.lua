@@ -37,9 +37,9 @@ end
 
 local I3 = matrices.mat3()
 function solverCommons.prepareContact(contact)
+	if contact.type ~= "contact" then return end
 	contact.contactMatrix = generateOrthoBasis(contact.contactNormal)
 	contact.accumulatedNormalImpulse = 0
-
 
 	local totalInertia
 
